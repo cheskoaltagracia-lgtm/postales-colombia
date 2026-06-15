@@ -29,7 +29,12 @@ const state = {
         address_country: 'US'
     },
     apiKey: 'test_pub_f29dcfc354131d3aac2c99f469d1c1a',
-    isDevMode: false
+    isDevMode: false,
+    cart: [],
+    pricePerPostcardCents: 300,
+    stripe: null,
+    stripeCardElement: null,
+    stripeReady: false
 };
 
 // Bilingual dictionary
@@ -96,7 +101,7 @@ const i18n = {
         btn_pay: "Pagar y Enviar Postal",
         checkout_secure_text: "Encriptación SSL de 256 bits segura. Procesado mediante Lob.com",
         success_title: "¡Postal Enviada con Éxito!",
-        success_desc: "Hemos procesado tu pago de $1.38 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.",
+        success_desc: "Hemos procesado tu pago de $3.00 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.",
         timeline_title: "Estado del Envío (Simulado)",
         timeline_step1_title: "Pago Confirmado & API de Impresión Contactada",
         timeline_step1_desc: "La postal se registró exitosamente en el sistema de Lob.",
@@ -178,7 +183,7 @@ const i18n = {
         btn_pay: "Pay & Mail Postcard",
         checkout_secure_text: "Secured 256-bit SSL encryption. Processed via Lob.com",
         success_title: "Postcard Sent Successfully!",
-        success_desc: "We have processed your payment of $1.38 USD. The postcard has been sent to the printing center closest to its destination.",
+        success_desc: "We have processed your payment of $3.00 USD. The postcard has been sent to the printing center closest to its destination.",
         timeline_title: "Delivery Status (Simulated)",
         timeline_step1_title: "Payment Confirmed & Print API Contacted",
         timeline_step1_desc: "Postcard has been registered successfully in the Lob system.",
@@ -258,9 +263,7 @@ function updateLanguage(lang) {
         'recipient-address2': 'Suite, floor, etc. (optional)',
         'recipient-city': 'New York',
         'recipient-state': 'NY',
-        'recipient-zip': '10001',
-        'card-holder': 'John Doe',
-        'card-number': '4111 2222 3333 4444'
+        'recipient-zip': '10001'
     };
 
     if (lang === 'en') {
@@ -599,47 +602,20 @@ function initEventListeners() {
     // Step 3 actions
     document.getElementById('step3-back').addEventListener('click', () => showView('view-step-2'));
     document.getElementById('step3-next').addEventListener('click', () => {
-        // Fill checkout cardholder
-        document.getElementById('card-holder').value = state.sender.name || '';
+        renderCart();
         showView('view-step-4');
+        initStripe();
     });
 
     // Step 4 actions
     document.getElementById('step4-back').addEventListener('click', () => showView('view-step-3'));
-    
-    // Credit Card formatting & validation detection
-    const cardInput = document.getElementById('card-number');
-    cardInput.addEventListener('input', (e) => {
-        let val = e.target.value.replace(/\D/g, '');
-        // Group by 4 digits
-        let formatted = val.match(/.{1,4}/g)?.join(' ') || '';
-        e.target.value = formatted;
-        
-        // Simple card type recognition
-        const brandIcon = document.getElementById('card-brand-icon');
-        if (val.startsWith('4')) {
-            brandIcon.textContent = '💳 Visa';
-        } else if (val.startsWith('5')) {
-            brandIcon.textContent = '💳 Mastercard';
-        } else if (val.startsWith('3')) {
-            brandIcon.textContent = '💳 Amex';
-        } else {
-            brandIcon.textContent = '💳';
-        }
+
+    // Add another postcard to cart
+    document.getElementById('btn-add-another-postcard').addEventListener('click', () => {
+        addAnotherPostcardToCart();
     });
 
-    // Card expiry formatting
-    const expiryInput = document.getElementById('card-expiry');
-    expiryInput.addEventListener('input', (e) => {
-        let val = e.target.value.replace(/\D/g, '');
-        if (val.length >= 2) {
-            e.target.value = val.slice(0, 2) + '/' + val.slice(2, 4);
-        } else {
-            e.target.value = val;
-        }
-    });
-
-    // Payment Form Submit
+    // Payment Form Submit (Stripe + Lob batch)
     document.getElementById('payment-form').addEventListener('submit', (e) => {
         e.preventDefault();
         submitPostcardOrder();
@@ -1003,112 +979,263 @@ function syntaxHighlightJSON(json) {
     });
 }
 
-// Submit Order Logic (Handles mock payment & actual API call to Lob if API key is input)
-function submitPostcardOrder() {
-    const payBtn = document.getElementById('btn-pay-now');
-    const originalText = payBtn.innerHTML;
-    
-    // Disable inputs and show loading state
-    payBtn.setAttribute('disabled', 'true');
-    payBtn.innerHTML = `<span class="spinner"></span> <span>${state.lang === 'es' ? 'Procesando pago...' : 'Processing payment...'}</span>`;
-    
-    const simulationDelay = 2000; // 2 seconds
+// ===== Cart helpers =====
 
-    setTimeout(async () => {
-        // Check if there is a Lob API Key configured
-        if (state.apiKey) {
-            try {
-                const response = await callRealLobAPI();
-                displayAPIResponse(response);
-                
-                if (response.id) {
-                    document.getElementById('success-lob-id').textContent = response.id;
-                    if (state.lang === 'es') {
-                        document.querySelector('#view-success .success-desc').innerHTML = `¡Pago verificado y postal creada exitosamente en tu cuenta de Lob! ID de Lob: <strong>${response.id}</strong>. Envío programado.`;
-                    } else {
-                        document.querySelector('#view-success .success-desc').innerHTML = `Payment verified and postcard created successfully in your Lob account! Lob ID: <strong>${response.id}</strong>. Mail scheduled.`;
-                    }
-                }
-            } catch (err) {
-                console.error("API Call error:", err);
-                alert(state.lang === 'es' 
-                    ? `Error al conectar con Lob API: ${err.message}. La transacción se simulará localmente.`
-                    : `Error connecting to Lob API: ${err.message}. Transaction will fall back to local simulation.`
-                );
-                // Fallback to simulation
-                document.getElementById('success-lob-id').textContent = `psc_simulated_${Math.random().toString(36).substr(2, 9)}`;
-            }
-        } else {
-            // Local simulation ID
-            document.getElementById('success-lob-id').textContent = `psc_simulated_${Math.random().toString(36).substr(2, 9)}`;
+function getCurrentImageDataURL() {
+    try {
+        if (typeof canvas !== 'undefined' && loadedImage) {
+            return canvas.toDataURL('image/jpeg', 0.9);
         }
-
-        // Restore button state
-        payBtn.removeAttribute('disabled');
-        payBtn.innerHTML = originalText;
-        
-        // Go to success view
-        showView('view-success');
-        
-    }, simulationDelay);
+    } catch (e) { /* CORS or no canvas */ }
+    if (state.selectedPhotoSrc && state.selectedPhotoSrc.startsWith('data:')) {
+        return state.selectedPhotoSrc;
+    }
+    return '';
 }
 
-// Execute the HTTP Request via Netlify Function (secure, hides Lob Secret Key)
-async function callRealLobAPI() {
-    let frontImageBase64 = '';
-    try {
-        frontImageBase64 = canvas.toDataURL('image/jpeg', 0.9);
-    } catch (e) {
-        if (state.selectedPhotoSrc && state.selectedPhotoSrc.startsWith('data:')) {
-            frontImageBase64 = state.selectedPhotoSrc;
-        } else {
-            throw new Error(state.lang === 'es' 
-                ? "No se puede exportar la imagen debido a restricciones CORS. Sube una foto propia."
-                : "Cannot export image due to CORS restrictions. Please upload your own photo."
-            );
-        }
-    }
-    
-    const bodyData = {
-        description: `Postales Colombia - De ${state.sender.name || 'Viajero'} a ${state.recipient.name || 'Amigo'}`,
-        to: {
-            name: state.recipient.name,
-            address_line1: state.recipient.address_line1,
-            address_line2: state.recipient.address_line2 || undefined,
-            address_city: state.recipient.address_city,
-            address_state: state.recipient.address_state,
-            address_zip: state.recipient.address_zip,
-            address_country: state.recipient.address_country
-        },
-        from: {
-            name: state.sender.name || "Postales Colombia Viajero",
-            address_line1: state.sender.address_line1,
-            address_city: state.sender.address_city,
-            address_state: state.sender.address_state,
-            address_zip: state.sender.address_zip,
-            address_country: state.sender.address_country
-        },
-        front: frontImageBase64,
+function snapshotCurrentPostcard() {
+    return {
+        sender: { ...state.sender },
+        recipient: { ...state.recipient },
         message: state.message,
-        size: "4x6"
+        frontText: state.frontText,
+        selectedPhotoSrc: state.selectedPhotoSrc,
+        filters: { ...state.filters },
+        rotation: state.rotation,
+        imageDataURL: getCurrentImageDataURL()
     };
+}
 
-    // Call Netlify Function (works on netlify.app and localhost with netlify dev)
-    const functionUrl = '/.netlify/functions/create-postcard';
-    
-    const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
+function clearCurrentPostcard() {
+    state.recipient = {
+        name: '', address_line1: '', address_line2: '',
+        address_city: '', address_state: '', address_zip: '',
+        address_country: 'US'
+    };
+    state.message = '';
+    state.frontText = state.lang === 'es' ? '¡Saludos desde Colombia!' : 'Greetings from Colombia!';
+    state.selectedPhotoSrc = null;
+    state.filters = { brightness: 100, contrast: 100, preset: 'normal' };
+    state.rotation = 0;
+    if (typeof loadedImage !== 'undefined') loadedImage = null;
+    ['recipient-name', 'recipient-address1', 'recipient-address2', 'recipient-city', 'recipient-state', 'recipient-zip', 'message-input', 'front-text-input']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    resetCameraUI();
+}
+
+function addAnotherPostcardToCart() {
+    if (!state.recipient.name || !state.recipient.address_line1) {
+        alert(state.lang === 'es'
+            ? 'Completa al menos el destinatario de la postal actual antes de agregar otra.'
+            : 'Complete at least the current postcard recipient before adding another.');
+        return;
+    }
+    state.cart.push(snapshotCurrentPostcard());
+    clearCurrentPostcard();
+    showView('view-step-1');
+}
+
+function formatMoneyUSD(cents) {
+    return `$${(cents / 100).toFixed(2)} USD`;
+}
+
+function renderCart() {
+    const totalQty = state.cart.length + 1;
+    const totalCents = totalQty * state.pricePerPostcardCents;
+    const copPerPostcard = 12200;
+    const totalCOP = (totalQty * copPerPostcard).toLocaleString();
+
+    const qtyEl = document.getElementById('cart-quantity-display');
+    const subEl = document.getElementById('cart-subtotal');
+    const totUSD = document.getElementById('cart-total-usd');
+    const totCOP = document.getElementById('cart-total-cop');
+    if (qtyEl) qtyEl.textContent = totalQty;
+    if (subEl) subEl.textContent = `${formatMoneyUSD(state.pricePerPostcardCents)} × ${totalQty}`;
+    if (totUSD) totUSD.textContent = formatMoneyUSD(totalCents);
+    if (totCOP) totCOP.textContent = `~$${totalCOP} COP`;
+
+    const list = document.getElementById('cart-items-list');
+    if (!list) return;
+    let html = '';
+    state.cart.forEach((p, i) => {
+        const thumb = p.imageDataURL
+            ? `<img class="cart-item-thumb" src="${p.imageDataURL}" alt="">`
+            : `<span class="cart-item-thumb-placeholder">📮</span>`;
+        html += `<div class="cart-item">
+            <span class="cart-item-num">${i + 1}</span>
+            ${thumb}
+            <div class="cart-item-info">
+                <strong>${escapeHTML(p.recipient.name || '-')}</strong>
+                <small>${escapeHTML(p.recipient.address_city || '-')}, ${escapeHTML(p.recipient.address_country || '-')}</small>
+            </div>
+        </div>`;
     });
+    const currentImg = getCurrentImageDataURL();
+    const currentThumb = currentImg
+        ? `<img class="cart-item-thumb" src="${currentImg}" alt="">`
+        : `<span class="cart-item-thumb-placeholder">📮</span>`;
+    const currentTag = state.lang === 'es' ? '(actual)' : '(current)';
+    html += `<div class="cart-item cart-item-current">
+        <span class="cart-item-num">${state.cart.length + 1}</span>
+        ${currentThumb}
+        <div class="cart-item-info">
+            <strong>${escapeHTML(state.recipient.name || '-')} <span class="cart-item-current-tag">${currentTag}</span></strong>
+            <small>${escapeHTML(state.recipient.address_city || '-')}, ${escapeHTML(state.recipient.address_country || '-')}</small>
+        </div>
+    </div>`;
+    list.innerHTML = html;
+}
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-        throw new Error(data.error?.message || `HTTP error! status: ${response.status}`);
+function escapeHTML(str) {
+    return String(str || '').replace(/[&<>"']/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[s]));
+}
+
+// ===== Stripe =====
+
+async function initStripe() {
+    if (state.stripeReady) return;
+    const errEl = document.getElementById('card-errors');
+    try {
+        if (typeof Stripe === 'undefined') {
+            throw new Error('Stripe.js no cargó. Revisa tu conexión.');
+        }
+        const cfgResp = await fetch('/.netlify/functions/stripe-config');
+        if (!cfgResp.ok) throw new Error('No se pudo obtener configuración de Stripe');
+        const { publishableKey } = await cfgResp.json();
+        if (!publishableKey) throw new Error('STRIPE_PUBLISHABLE_KEY ausente en Netlify');
+
+        state.stripe = Stripe(publishableKey);
+        const elements = state.stripe.elements({ locale: state.lang === 'es' ? 'es' : 'en' });
+        state.stripeCardElement = elements.create('card', {
+            hidePostalCode: false,
+            style: {
+                base: {
+                    fontSize: '16px',
+                    color: '#1C1C1B',
+                    fontFamily: '"Inter", system-ui, sans-serif',
+                    '::placeholder': { color: '#999' }
+                },
+                invalid: { color: '#e74c3c' }
+            }
+        });
+        state.stripeCardElement.mount('#card-element');
+        state.stripeCardElement.on('change', (event) => {
+            if (errEl) errEl.textContent = event.error ? event.error.message : '';
+        });
+        state.stripeReady = true;
+    } catch (err) {
+        console.error('initStripe error:', err);
+        if (errEl) errEl.textContent = err.message;
+    }
+}
+
+// ===== Submit =====
+
+async function submitPostcardOrder() {
+    const payBtn = document.getElementById('btn-pay-now');
+    const errEl = document.getElementById('card-errors');
+    const originalText = payBtn.innerHTML;
+
+    if (errEl) errEl.textContent = '';
+
+    if (!state.recipient.name || !state.recipient.address_line1 || !state.recipient.address_city || !state.recipient.address_zip) {
+        if (errEl) errEl.textContent = state.lang === 'es'
+            ? 'La postal actual no tiene destinatario completo.'
+            : 'Current postcard recipient is incomplete.';
+        return;
     }
 
-    return data;
+    if (!state.stripeReady || !state.stripeCardElement) {
+        if (errEl) errEl.textContent = state.lang === 'es'
+            ? 'Stripe no está listo. Recarga la página.'
+            : 'Stripe is not ready. Please reload.';
+        return;
+    }
+
+    payBtn.setAttribute('disabled', 'true');
+    payBtn.innerHTML = `<span class="spinner"></span> <span>${state.lang === 'es' ? 'Procesando pago...' : 'Processing payment...'}</span>`;
+
+    try {
+        const allPostcards = [...state.cart, snapshotCurrentPostcard()];
+        const quantity = allPostcards.length;
+
+        // 1. Create PaymentIntent on server (amount calculated server-side)
+        const piResp = await fetch('/.netlify/functions/create-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity })
+        });
+        const piData = await piResp.json();
+        if (!piResp.ok) throw new Error(piData.error || 'Error creando el pago');
+
+        // 2. Confirm card payment
+        const result = await state.stripe.confirmCardPayment(piData.clientSecret, {
+            payment_method: { card: state.stripeCardElement }
+        });
+        if (result.error) throw new Error(result.error.message);
+        if (!result.paymentIntent || result.paymentIntent.status !== 'succeeded') {
+            throw new Error(state.lang === 'es' ? 'El pago no se completó' : 'Payment did not complete');
+        }
+
+        const paymentIntentId = result.paymentIntent.id;
+
+        // 3. Send all postcards to backend with proof of payment
+        const lobBodies = allPostcards.map(p => ({
+            description: `Postales Colombia - De ${p.sender.name || 'Viajero'} a ${p.recipient.name || 'Amigo'}`,
+            to: {
+                name: p.recipient.name,
+                address_line1: p.recipient.address_line1,
+                address_line2: p.recipient.address_line2 || undefined,
+                address_city: p.recipient.address_city,
+                address_state: p.recipient.address_state,
+                address_zip: p.recipient.address_zip,
+                address_country: p.recipient.address_country
+            },
+            from: {
+                name: p.sender.name || 'Postales Colombia Viajero',
+                address_line1: p.sender.address_line1,
+                address_city: p.sender.address_city,
+                address_state: p.sender.address_state,
+                address_zip: p.sender.address_zip,
+                address_country: p.sender.address_country
+            },
+            front: p.imageDataURL,
+            message: p.message || '',
+            size: '4x6'
+        }));
+
+        const lobResp = await fetch('/.netlify/functions/create-postcards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentIntentId, postcards: lobBodies })
+        });
+        const lobData = await lobResp.json();
+        if (!lobResp.ok) throw new Error(lobData.error || 'Error creando las postales');
+
+        displayAPIResponse(lobData);
+        const ids = lobData.ids || [];
+        document.getElementById('success-lob-id').textContent = ids.join(', ') || '(sin IDs)';
+        const totalUSD = formatMoneyUSD(quantity * state.pricePerPostcardCents);
+        if (state.lang === 'es') {
+            document.querySelector('#view-success .success-desc').innerHTML =
+                `¡Pago de <strong>${totalUSD}</strong> verificado y <strong>${ids.length}</strong> postal(es) creadas en Lob! IDs: <strong>${ids.join(', ')}</strong>.`;
+        } else {
+            document.querySelector('#view-success .success-desc').innerHTML =
+                `Payment of <strong>${totalUSD}</strong> verified and <strong>${ids.length}</strong> postcard(s) created in Lob. IDs: <strong>${ids.join(', ')}</strong>.`;
+        }
+
+        state.cart = [];
+
+        showView('view-success');
+    } catch (err) {
+        console.error('Payment/Order error:', err);
+        if (errEl) errEl.textContent = err.message;
+    } finally {
+        payBtn.removeAttribute('disabled');
+        payBtn.innerHTML = originalText;
+    }
 }
 
 // Display Lob API Response in Sandbox Panel

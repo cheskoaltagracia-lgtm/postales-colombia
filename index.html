@@ -10,6 +10,9 @@
     
     <!-- Link CSS -->
     <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Stripe.js for secure payment processing -->
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
@@ -307,7 +310,7 @@
                                             <div class="stamp-slot stamp-slot-colombia">
                                                 <div class="stamp-flag"></div>
                                                 <div class="stamp-text">COLOMBIA</div>
-                                                <div class="stamp-text" style="font-weight: 800;">$1.38</div>
+                                                <div class="stamp-text" style="font-weight: 800;">$3.00</div>
                                             </div>
                                             <div class="address-lines">
                                                 <div class="address-line" id="card-back-name" style="font-weight: 800;"></div>
@@ -357,7 +360,7 @@
                                         <div class="stamp-slot stamp-slot-colombia">
                                             <div class="stamp-flag"></div>
                                             <div class="stamp-text">COLOMBIA</div>
-                                            <div class="stamp-text" style="font-weight: 800;">$1.38</div>
+                                            <div class="stamp-text" style="font-weight: 800;">$3.00</div>
                                         </div>
                                         <div class="address-lines">
                                             <div class="address-line" id="review-card-back-name" style="font-weight: 800;"></div>
@@ -412,55 +415,48 @@
                     <h2 class="view-title">💳 <span data-i18n="step4_title">Checkout y Envío</span></h2>
                     
                     <div class="checkout-container">
+                        <!-- Cart: lista de postales (anteriores + actual) + botón agregar otra -->
+                        <div class="cart-container" id="cart-container">
+                            <div class="cart-header">
+                                <h3>🛒 <span data-i18n="cart_title">Tus postales</span> <span class="cart-badge" id="cart-quantity-display">1</span></h3>
+                            </div>
+                            <div class="cart-items-list" id="cart-items-list">
+                                <!-- Items rendered by app.js -->
+                            </div>
+                            <button type="button" class="btn-secondary cart-add-btn" id="btn-add-another-postcard">
+                                ➕ <span data-i18n="btn_add_another">Agregar otra postal</span>
+                            </button>
+                        </div>
+
                         <!-- Order Summary -->
                         <div class="checkout-summary">
                             <div class="summary-item">
-                                <span data-i18n="checkout_summary_print">Impresión Postal Premium 4x6</span>
-                                <span>$0.60 USD</span>
-                            </div>
-                            <div class="summary-item">
-                                <span data-i18n="checkout_summary_postage">Estampilla y Envío Internacional</span>
-                                <span>$0.78 USD</span>
+                                <span data-i18n="checkout_summary_subtotal">Postales</span>
+                                <span id="cart-subtotal">$3.00 USD × 1</span>
                             </div>
                             <div class="summary-item total">
                                 <span data-i18n="checkout_summary_total">Total:</span>
-                                <span>$1.38 USD (~$5,600 COP)</span>
+                                <span><span id="cart-total-usd">$3.00 USD</span> (<span id="cart-total-cop">~$12,200 COP</span>)</span>
                             </div>
                         </div>
 
-                        <!-- Card payment form (simulated) -->
+                        <!-- Stripe Elements payment form -->
                         <form class="checkout-card-form" id="payment-form">
                             <div class="form-field">
-                                <label for="card-holder" data-i18n="checkout_cardholder">Nombre del Tarjetahabiente</label>
-                                <input type="text" id="card-holder" placeholder="John Doe" required>
-                            </div>
-                            
-                            <div class="form-field">
-                                <label for="card-number" data-i18n="checkout_cardnumber">Número de Tarjeta</label>
-                                <div class="card-input-wrapper">
-                                    <input type="text" id="card-number" placeholder="4111 2222 3333 4444" maxlength="19" required>
-                                    <span class="card-brand-icon" id="card-brand-icon">💳</span>
+                                <label for="card-element" data-i18n="checkout_card_label">Detalles de Tarjeta</label>
+                                <div id="card-element" class="card-element-stripe">
+                                    <!-- Stripe Elements card injected here -->
                                 </div>
+                                <div id="card-errors" class="card-errors-msg" role="alert"></div>
                             </div>
-                            
-                            <div class="form-row">
-                                <div class="form-field">
-                                    <label for="card-expiry" data-i18n="checkout_expiry">Vencimiento</label>
-                                    <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required>
-                                </div>
-                                <div class="form-field">
-                                    <label for="card-cvc">CVC</label>
-                                    <input type="password" id="card-cvc" placeholder="***" maxlength="4" required>
-                                </div>
-                            </div>
-                            
+
                             <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 15px; font-size: 1.1rem; margin-top: 10px;" id="btn-pay-now">
-                                <span data-i18n="btn_pay">Pagar y Enviar Postal</span> 🚀
+                                <span data-i18n="btn_pay">Pagar y Enviar Postales</span> 🚀
                             </button>
                         </form>
 
                         <div class="checkout-hint-secure">
-                            <span>🔒</span> <span data-i18n="checkout_secure_text">Encriptación SSL de 256 bits segura. Procesado mediante Lob.com</span>
+                            <span>🔒</span> <span data-i18n="checkout_secure_text">Encriptación SSL de 256 bits. Pago procesado por Stripe. Impresión por Lob.com</span>
                         </div>
                     </div>
 
@@ -477,7 +473,7 @@
                     <div class="success-icon">✓</div>
                     <h2 class="success-title" data-i18n="success_title">¡Postal Enviada con Éxito!</h2>
                     <p class="success-desc" data-i18n="success_desc">
-                        Hemos procesado tu pago de $1.38 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.
+                        Hemos procesado tu pago de $3.00 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.
                     </p>
                     
                     <div class="delivery-timeline">
