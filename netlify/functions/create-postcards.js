@@ -1,6 +1,6 @@
-const Stripe = require('stripe');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
 
-const PRICE_PER_POSTCARD_CENTS = 300;
+const PRICE_PER_POSTCARD_COP = 12200;
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
 const DEFAULT_FROM = {
@@ -53,17 +53,17 @@ exports.handler = async (event) => {
   if (!LOB_API_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'LOB_API_KEY missing' }) };
   }
-  const stripeSecret = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecret) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'STRIPE_SECRET_KEY missing' }) };
+  const mpAccessToken = process.env.MP_ACCESS_TOKEN;
+  if (!mpAccessToken) {
+    return { statusCode: 500, body: JSON.stringify({ error: 'MP_ACCESS_TOKEN missing' }) };
   }
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const { paymentIntentId, postcards } = body;
+    const { paymentId, postcards } = body;
 
-    if (!paymentIntentId) {
-      return { statusCode: 402, body: JSON.stringify({ error: 'paymentIntentId required' }) };
+    if (!paymentId) {
+      return { statusCode: 402, body: JSON.stringify({ error: 'paymentId required' }) };
     }
     if (!Array.isArray(postcards) || postcards.length === 0) {
       return { statusCode: 400, body: JSON.stringify({ error: 'postcards[] required and non-empty' }) };
@@ -83,25 +83,32 @@ exports.handler = async (event) => {
       }
     }
 
-    const stripe = Stripe(stripeSecret);
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const mpClient = new MercadoPagoConfig({
+      accessToken: mpAccessToken,
+      options: { timeout: 5000 }
+    });
+    const paymentClient = new Payment(mpClient);
+    const payment = await paymentClient.get({ id: paymentId });
 
-    if (pi.status !== 'succeeded') {
+    if (payment.status !== 'approved') {
       return {
         statusCode: 402,
-        body: JSON.stringify({ error: `Payment not succeeded (status: ${pi.status})` })
+        body: JSON.stringify({ error: `Payment not approved (status: ${payment.status})` })
       };
     }
 
-    if (pi.metadata?.fulfilled === 'true') {
+    const expectedAmount = postcards.length * PRICE_PER_POSTCARD_COP;
+    if (Math.round(payment.transaction_amount) !== expectedAmount) {
       return {
-        statusCode: 409,
-        body: JSON.stringify({ error: 'Payment already fulfilled' })
+        statusCode: 402,
+        body: JSON.stringify({
+          error: `Amount mismatch: charged ${payment.transaction_amount} COP, expected ${expectedAmount} COP`
+        })
       };
     }
 
-    const paidQuantity = parseInt(pi.metadata?.quantity || '0', 10);
-    if (postcards.length !== paidQuantity) {
+    const paidQuantity = parseInt(payment.metadata?.quantity || '0', 10);
+    if (paidQuantity && postcards.length !== paidQuantity) {
       return {
         statusCode: 402,
         body: JSON.stringify({
@@ -109,20 +116,6 @@ exports.handler = async (event) => {
         })
       };
     }
-
-    const expectedAmount = paidQuantity * PRICE_PER_POSTCARD_CENTS;
-    if (pi.amount !== expectedAmount) {
-      return {
-        statusCode: 402,
-        body: JSON.stringify({
-          error: `Amount mismatch: charged ${pi.amount}, expected ${expectedAmount}`
-        })
-      };
-    }
-
-    await stripe.paymentIntents.update(paymentIntentId, {
-      metadata: { ...pi.metadata, fulfilled: 'in_progress' }
-    });
 
     const results = [];
     const errors = [];
@@ -137,15 +130,6 @@ exports.handler = async (event) => {
       }
     }
 
-    await stripe.paymentIntents.update(paymentIntentId, {
-      metadata: {
-        ...pi.metadata,
-        fulfilled: errors.length === 0 ? 'true' : 'partial',
-        success_count: String(results.filter(r => r.ok).length),
-        error_count: String(errors.length)
-      }
-    });
-
     return {
       statusCode: errors.length === postcards.length ? 500 : 200,
       headers: { 'Content-Type': 'application/json' },
@@ -153,7 +137,9 @@ exports.handler = async (event) => {
         ok: errors.length === 0,
         results,
         ids: results.filter(r => r.ok).map(r => r.id),
-        errors
+        errors,
+        paymentStatus: payment.status,
+        paymentAmount: payment.transaction_amount
       })
     };
   } catch (err) {

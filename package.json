@@ -2,8 +2,8 @@
   "name": "postales-colombia",
   "version": "1.0.0",
   "private": true,
-  "description": "Postales Colombia - sitio que envia postales fisicas con Stripe + Lob",
+  "description": "Postales Colombia - sitio que envia postales fisicas con MercadoPago + Lob",
   "dependencies": {
-    "stripe": "^16.12.0"
+    "mercadopago": "^2.0.15"
   }
 }

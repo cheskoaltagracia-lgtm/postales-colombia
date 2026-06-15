@@ -11,8 +11,6 @@
     <!-- Link CSS -->
     <link rel="stylesheet" href="css/styles.css">
 
-    <!-- Stripe.js for secure payment processing -->
-    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
@@ -28,10 +26,6 @@
                 <button class="lang-btn active" data-lang="es">ES</button>
                 <button class="lang-btn" data-lang="en">EN</button>
             </div>
-            <!-- Dev Console Toggle -->
-            <button class="dev-toggle-btn" id="dev-console-toggle">
-                <span>⚙️</span> <span data-i18n="dev_mode">Developer Mode</span>
-            </button>
         </div>
     </header>
 
@@ -440,23 +434,21 @@
                             </div>
                         </div>
 
-                        <!-- Stripe Elements payment form -->
+                        <!-- MercadoPago redirect -->
                         <form class="checkout-card-form" id="payment-form">
-                            <div class="form-field">
-                                <label for="card-element" data-i18n="checkout_card_label">Detalles de Tarjeta</label>
-                                <div id="card-element" class="card-element-stripe">
-                                    <!-- Stripe Elements card injected here -->
-                                </div>
-                                <div id="card-errors" class="card-errors-msg" role="alert"></div>
+                            <div class="mp-pay-info">
+                                <p data-i18n="mp_pay_info">Al continuar serás redirigido a Mercado Pago para completar el pago. Podrás pagar con tarjeta, PSE, Nequi, Daviplata o Efecty.</p>
                             </div>
 
-                            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 15px; font-size: 1.1rem; margin-top: 10px;" id="btn-pay-now">
-                                <span data-i18n="btn_pay">Pagar y Enviar Postales</span> 🚀
+                            <div id="card-errors" class="card-errors-msg" role="alert"></div>
+
+                            <button type="submit" class="btn-primary btn-mp" style="width: 100%; justify-content: center; padding: 15px; font-size: 1.1rem; margin-top: 10px;" id="btn-pay-now">
+                                <span data-i18n="btn_pay">Pagar con Mercado Pago</span> 🚀
                             </button>
                         </form>
 
                         <div class="checkout-hint-secure">
-                            <span>🔒</span> <span data-i18n="checkout_secure_text">Encriptación SSL de 256 bits. Pago procesado por Stripe. Impresión por Lob.com</span>
+                            <span>🔒</span> <span data-i18n="checkout_secure_text">Pago seguro procesado por Mercado Pago. Impresión y envío por Lob.com</span>
                         </div>
                     </div>
 
