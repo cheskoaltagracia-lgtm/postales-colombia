@@ -13,10 +13,10 @@ const state = {
     message: '',
     sender: {
         name: '',
-        address_line1: 'Calle 85 # 11-35',
-        address_city: 'Bogota',
-        address_state: 'Cundinamarca',
-        address_zip: '110111',
+        address_line1: '',
+        address_city: '',
+        address_state: '',
+        address_zip: '',
         address_country: 'CO'
     },
     recipient: {
@@ -507,6 +507,11 @@ function initEventListeners() {
 
     const formFields = [
         { inputId: 'sender-name', stateKey: 'name', parent: 'sender' },
+        { inputId: 'sender-address1', stateKey: 'address_line1', parent: 'sender' },
+        { inputId: 'sender-city', stateKey: 'address_city', parent: 'sender' },
+        { inputId: 'sender-state', stateKey: 'address_state', parent: 'sender' },
+        { inputId: 'sender-zip', stateKey: 'address_zip', parent: 'sender' },
+        { inputId: 'sender-country', stateKey: 'address_country', parent: 'sender' },
         { inputId: 'recipient-name', stateKey: 'name', parent: 'recipient', prevId: 'card-back-name' },
         { inputId: 'recipient-address1', stateKey: 'address_line1', parent: 'recipient', prevId: 'card-back-addr1' },
         { inputId: 'recipient-address2', stateKey: 'address_line2', parent: 'recipient', prevId: 'card-back-addr2' },
@@ -518,6 +523,7 @@ function initEventListeners() {
 
     formFields.forEach(field => {
         const inputEl = document.getElementById(field.inputId);
+        if (!inputEl) return;
         inputEl.addEventListener('input', () => {
             state[field.parent][field.stateKey] = inputEl.value;
             
@@ -557,9 +563,14 @@ function initEventListeners() {
     // Step 2 actions
     document.getElementById('step2-back').addEventListener('click', () => showView('view-step-1'));
     document.getElementById('step2-next').addEventListener('click', () => {
-        // Validate inputs
+        // Validate sender
+        if (!state.sender.name || !state.sender.address_line1 || !state.sender.address_city || !state.sender.address_zip) {
+            alert(state.lang === 'es' ? 'Por favor completa tu información de remitente (nombre + dirección).' : 'Please complete your sender info (name + address).');
+            return;
+        }
+        // Validate recipient
         if (!state.recipient.name || !state.recipient.address_line1 || !state.recipient.address_city || !state.recipient.address_zip) {
-            alert(state.lang === 'es' ? 'Por favor completa los campos de dirección requeridos.' : 'Please complete the required address fields.');
+            alert(state.lang === 'es' ? 'Por favor completa los campos de dirección del destinatario.' : 'Please complete the recipient address fields.');
             return;
         }
 

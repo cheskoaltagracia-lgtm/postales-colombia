@@ -3,24 +3,18 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const PRICE_PER_POSTCARD_COP = 12200;
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
-const DEFAULT_FROM = {
-  name: 'Postales Colombia',
-  address_line1: 'Calle 85 #11-35',
-  address_city: 'Bogota',
-  address_state: 'Cundinamarca',
-  address_zip: '110111',
-  address_country: 'CO'
-};
-
-function validateRecipient(to) {
-  return !!(to && to.name && to.address_line1 && to.address_city && to.address_zip && to.address_country);
+function validateAddress(addr) {
+  return !!(addr && addr.name && addr.address_line1 && addr.address_city && addr.address_zip && addr.address_country);
 }
+
+const validateRecipient = validateAddress;
+const validateSender = validateAddress;
 
 async function createOnePostcardInLob(postcard) {
   const lobBody = {
     description: postcard.description || 'Postales Colombia',
     to: postcard.to,
-    from: postcard.from || DEFAULT_FROM,
+    from: postcard.from,
     front: postcard.front,
     message: postcard.message || '',
     size: postcard.size || '4x6',
@@ -72,6 +66,11 @@ module.exports = async (req, res) => {
       if (!validateRecipient(postcards[i].to)) {
         return res.status(400).json({
           error: `Postcard ${i + 1}: invalid recipient fields`
+        });
+      }
+      if (!validateSender(postcards[i].from)) {
+        return res.status(400).json({
+          error: `Postcard ${i + 1}: invalid sender fields`
         });
       }
       if (!postcards[i].front) {

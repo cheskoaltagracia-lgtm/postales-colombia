@@ -226,9 +226,49 @@
                             <div class="form-group-title">👤 <span data-i18n="section_sender">Remitente (Tú)</span></div>
                             <div class="form-field">
                                 <label for="sender-name" data-i18n="label_full_name">Nombre Completo</label>
-                                <input type="text" id="sender-name" placeholder="John Doe">
+                                <input type="text" id="sender-name" placeholder="Tu nombre">
                             </div>
-                            
+
+                            <div class="form-field">
+                                <label for="sender-address1" data-i18n="label_address1">Dirección Línea 1</label>
+                                <input type="text" id="sender-address1" placeholder="Calle 123 # 45-67">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label for="sender-city" data-i18n="label_city">Ciudad</label>
+                                    <input type="text" id="sender-city" placeholder="Medellín">
+                                </div>
+                                <div class="form-field">
+                                    <label for="sender-state" data-i18n="label_state">Estado / Región</label>
+                                    <input type="text" id="sender-state" placeholder="Antioquia">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label for="sender-zip" data-i18n="label_zip">Código Postal</label>
+                                    <input type="text" id="sender-zip" placeholder="050001">
+                                </div>
+                                <div class="form-field">
+                                    <label for="sender-country" data-i18n="label_country">País</label>
+                                    <select id="sender-country">
+                                        <option value="CO" selected>Colombia (CO)</option>
+                                        <option value="US">Estados Unidos (US)</option>
+                                        <option value="MX">México (MX)</option>
+                                        <option value="AR">Argentina (AR)</option>
+                                        <option value="CL">Chile (CL)</option>
+                                        <option value="BR">Brasil (BR)</option>
+                                        <option value="ES">España (ES)</option>
+                                        <option value="CA">Canadá (CA)</option>
+                                        <option value="GB">Reino Unido (GB)</option>
+                                        <option value="DE">Alemania (DE)</option>
+                                        <option value="FR">Francia (FR)</option>
+                                        <option value="AU">Australia (AU)</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <!-- Section: Recipient -->
                             <div class="form-group-title">📫 <span data-i18n="section_recipient">Destinatario (A quién va dirigido)</span></div>
                             <div class="form-field">
