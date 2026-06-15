@@ -45,41 +45,39 @@ async function createOnePostcardInLob(postcard) {
   return data;
 }
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   if (!LOB_API_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'LOB_API_KEY missing' }) };
+    return res.status(500).json({ error: 'LOB_API_KEY missing' });
   }
   const mpAccessToken = process.env.MP_ACCESS_TOKEN;
   if (!mpAccessToken) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'MP_ACCESS_TOKEN missing' }) };
+    return res.status(500).json({ error: 'MP_ACCESS_TOKEN missing' });
   }
 
   try {
-    const body = JSON.parse(event.body || '{}');
+    const body = req.body || {};
     const { paymentId, postcards } = body;
 
     if (!paymentId) {
-      return { statusCode: 402, body: JSON.stringify({ error: 'paymentId required' }) };
+      return res.status(402).json({ error: 'paymentId required' });
     }
     if (!Array.isArray(postcards) || postcards.length === 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'postcards[] required and non-empty' }) };
+      return res.status(400).json({ error: 'postcards[] required and non-empty' });
     }
     for (let i = 0; i < postcards.length; i++) {
       if (!validateRecipient(postcards[i].to)) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: `Postcard ${i + 1}: invalid recipient fields` })
-        };
+        return res.status(400).json({
+          error: `Postcard ${i + 1}: invalid recipient fields`
+        });
       }
       if (!postcards[i].front) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: `Postcard ${i + 1}: missing front image` })
-        };
+        return res.status(400).json({
+          error: `Postcard ${i + 1}: missing front image`
+        });
       }
     }
 
@@ -91,30 +89,23 @@ exports.handler = async (event) => {
     const payment = await paymentClient.get({ id: paymentId });
 
     if (payment.status !== 'approved') {
-      return {
-        statusCode: 402,
-        body: JSON.stringify({ error: `Payment not approved (status: ${payment.status})` })
-      };
+      return res.status(402).json({
+        error: `Payment not approved (status: ${payment.status})`
+      });
     }
 
     const expectedAmount = postcards.length * PRICE_PER_POSTCARD_COP;
     if (Math.round(payment.transaction_amount) !== expectedAmount) {
-      return {
-        statusCode: 402,
-        body: JSON.stringify({
-          error: `Amount mismatch: charged ${payment.transaction_amount} COP, expected ${expectedAmount} COP`
-        })
-      };
+      return res.status(402).json({
+        error: `Amount mismatch: charged ${payment.transaction_amount} COP, expected ${expectedAmount} COP`
+      });
     }
 
     const paidQuantity = parseInt(payment.metadata?.quantity || '0', 10);
     if (paidQuantity && postcards.length !== paidQuantity) {
-      return {
-        statusCode: 402,
-        body: JSON.stringify({
-          error: `Postcard count (${postcards.length}) doesn't match paid quantity (${paidQuantity})`
-        })
-      };
+      return res.status(402).json({
+        error: `Postcard count (${postcards.length}) doesn't match paid quantity (${paidQuantity})`
+      });
     }
 
     const results = [];
@@ -130,20 +121,16 @@ exports.handler = async (event) => {
       }
     }
 
-    return {
-      statusCode: errors.length === postcards.length ? 500 : 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ok: errors.length === 0,
-        results,
-        ids: results.filter(r => r.ok).map(r => r.id),
-        errors,
-        paymentStatus: payment.status,
-        paymentAmount: payment.transaction_amount
-      })
-    };
+    return res.status(errors.length === postcards.length ? 500 : 200).json({
+      ok: errors.length === 0,
+      results,
+      ids: results.filter(r => r.ok).map(r => r.id),
+      errors,
+      paymentStatus: payment.status,
+      paymentAmount: payment.transaction_amount
+    });
   } catch (err) {
     console.error('create-postcards error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return res.status(500).json({ error: err.message });
   }
 };

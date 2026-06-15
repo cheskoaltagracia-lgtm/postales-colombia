@@ -54,7 +54,7 @@ const i18n = {
         step1_title: "Selecciona y Edita tu Foto",
         upload_prompt_1: "Sube una foto de tu celular",
         upload_prompt_2: "O haz clic en una de la galería de abajo",
-        btn_upload: "Tomar o Subir Foto 📸",
+        btn_upload: "Subir foto",
         btn_rotate: "Rotar 90°",
         btn_retake: "Rehacer Foto",
         label_text_overlay: "Texto en el Frente",
@@ -140,7 +140,7 @@ const i18n = {
         step1_title: "Select & Edit Your Photo",
         upload_prompt_1: "Upload a photo from your phone",
         upload_prompt_2: "Or click on one from the gallery below",
-        btn_upload: "Take or Upload Photo 📸",
+        btn_upload: "Upload photo",
         btn_rotate: "Rotate 90°",
         btn_retake: "Retake Photo",
         label_text_overlay: "Front Text Overlay",
@@ -1145,7 +1145,7 @@ async function submitPostcardOrder() {
         const quantity = allPostcards.length;
         const lobBodies = buildLobBodiesFromPostcards(allPostcards);
 
-        const prefResp = await fetch('/.netlify/functions/create-preference', {
+        const prefResp = await fetch('/api/create-preference', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1230,7 +1230,7 @@ async function handleMercadoPagoReturn() {
     }
 
     try {
-        const lobResp = await fetch('/.netlify/functions/create-postcards', {
+        const lobResp = await fetch('/api/create-postcards', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

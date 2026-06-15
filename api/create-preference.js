@@ -3,29 +3,25 @@ const { MercadoPagoConfig, Preference } = require('mercadopago');
 const PRICE_PER_POSTCARD_COP = 12200;
 const MAX_QUANTITY = 50;
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const accessToken = process.env.MP_ACCESS_TOKEN;
   if (!accessToken) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'MP_ACCESS_TOKEN missing in Netlify env vars' })
-    };
+    return res.status(500).json({ error: 'MP_ACCESS_TOKEN missing in Vercel env vars' });
   }
 
   try {
-    const body = JSON.parse(event.body || '{}');
+    const body = req.body || {};
     const quantity = parseInt(body.quantity, 10);
-    const siteOrigin = body.siteOrigin || 'https://postales-colombian.netlify.app';
+    const siteOrigin = body.siteOrigin || 'https://postales-colombia.vercel.app';
 
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: `Quantity must be an integer between 1 and ${MAX_QUANTITY}` })
-      };
+      return res.status(400).json({
+        error: `Quantity must be an integer between 1 and ${MAX_QUANTITY}`
+      });
     }
 
     const client = new MercadoPagoConfig({
@@ -42,7 +38,7 @@ exports.handler = async (event) => {
         items: [
           {
             id: 'postal-4x6',
-            title: 'Postal Colombia 4x6 (impresión + envío internacional)',
+            title: 'Postal Colombia 4x6 (impresion + envio internacional)',
             description: `${quantity} postal(es) a enviar fisicamente`,
             quantity: quantity,
             currency_id: 'COP',
@@ -64,23 +60,16 @@ exports.handler = async (event) => {
       }
     });
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        preferenceId: preference.id,
-        initPoint: preference.init_point,
-        sandboxInitPoint: preference.sandbox_init_point,
-        externalReference,
-        quantity,
-        totalCOP: quantity * unitPrice
-      })
-    };
+    return res.status(200).json({
+      preferenceId: preference.id,
+      initPoint: preference.init_point,
+      sandboxInitPoint: preference.sandbox_init_point,
+      externalReference,
+      quantity,
+      totalCOP: quantity * unitPrice
+    });
   } catch (err) {
     console.error('create-preference error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || 'Error creating preference' })
-    };
+    return res.status(500).json({ error: err.message || 'Error creating preference' });
   }
 };
