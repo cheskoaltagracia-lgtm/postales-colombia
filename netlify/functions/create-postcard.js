@@ -1,13 +1,15 @@
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
 exports.handler = async (event, context) => {
+  console.log('Function invoked', { method: event.httpMethod, hasKey: !!LOB_API_KEY });
+  
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   if (!LOB_API_KEY) {
     console.error('LOB_API_KEY not configured in Netlify env vars');
-    return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error' }) };
+    return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error: LOB_API_KEY missing' }) };
   }
 
   try {
