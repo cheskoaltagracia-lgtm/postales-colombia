@@ -1589,6 +1589,32 @@ input[type=range]::-webkit-slider-thumb:hover {
     background: #fffaf0 !important;
 }
 
+.tourist-toggle-field {
+    background: #fffaf0;
+    border: 1px dashed #C9A14B;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.tourist-toggle-label {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.92rem !important;
+    color: #1C1C1B !important;
+    margin: 0 !important;
+}
+
+.tourist-toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: #C9A14B;
+}
+
 .card-errors-msg {
     color: #e74c3c;
     font-size: 0.88rem;

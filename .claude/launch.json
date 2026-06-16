@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "postales-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "public_html", "-p", "5500", "-c-1", "--silent"],
+      "port": 5500
+    }
+  ]
+}

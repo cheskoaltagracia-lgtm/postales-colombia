@@ -55,6 +55,7 @@ const i18n = {
         upload_prompt_1: "Sube una foto de tu celular",
         upload_prompt_2: "O haz clic en una de la galería de abajo",
         btn_upload: "Subir foto",
+        tourist_toggle: "Soy turista — usar dirección predeterminada de Postales Colombia",
         btn_rotate: "Rotar 90°",
         btn_retake: "Rehacer Foto",
         label_text_overlay: "Texto en el Frente",
@@ -141,6 +142,7 @@ const i18n = {
         upload_prompt_1: "Upload a photo from your phone",
         upload_prompt_2: "Or click on one from the gallery below",
         btn_upload: "Upload photo",
+        tourist_toggle: "I'm a tourist — use Postales Colombia default address",
         btn_rotate: "Rotate 90°",
         btn_retake: "Retake Photo",
         label_text_overlay: "Front Text Overlay",
@@ -626,6 +628,42 @@ function initEventListeners() {
         e.preventDefault();
         submitPostcardOrder();
     });
+
+    // Tourist mode toggle: pre-fill sender with default address (Postales Colombia)
+    const touristToggle = document.getElementById('sender-tourist-toggle');
+    if (touristToggle) {
+        const TOURIST_DEFAULT = {
+            'sender-name': 'Postales Colombia',
+            'sender-address1': 'Calle 85 # 11-35',
+            'sender-city': 'Bogota',
+            'sender-state': 'Cundinamarca',
+            'sender-zip': '110111',
+            'sender-country': 'CO'
+        };
+        const KEY_MAP = {
+            'sender-name': 'name',
+            'sender-address1': 'address_line1',
+            'sender-city': 'address_city',
+            'sender-state': 'address_state',
+            'sender-zip': 'address_zip',
+            'sender-country': 'address_country'
+        };
+        touristToggle.addEventListener('change', () => {
+            Object.keys(TOURIST_DEFAULT).forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (touristToggle.checked) {
+                    el.value = TOURIST_DEFAULT[id];
+                    el.disabled = true;
+                    state.sender[KEY_MAP[id]] = TOURIST_DEFAULT[id];
+                } else {
+                    el.disabled = false;
+                    el.value = id === 'sender-country' ? 'CO' : '';
+                    state.sender[KEY_MAP[id]] = id === 'sender-country' ? 'CO' : '';
+                }
+            });
+        });
+    }
 
     // Handle return from MercadoPago
     handleMercadoPagoReturn();
