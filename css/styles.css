@@ -1792,14 +1792,6 @@ input[type=range]::-webkit-slider-thumb:hover {
     }
 }
 
-/* gallery-card placeholder if image missing */
-.gallery-card.img-missing {
-    background: linear-gradient(135deg, #1c1c1b 0%, #C9A14B 100%);
-}
-.gallery-card.img-missing img {
-    display: none;
-}
-
 .tourist-toggle-field {
     background: #fffaf0;
     border: 1px dashed #C9A14B;
