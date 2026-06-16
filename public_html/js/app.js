@@ -1,3 +1,94 @@
+// Country list (Lob soporta envío global; estos son los principales destinos)
+const COUNTRIES = [
+    { code: 'CO', name: 'Colombia' },
+    { code: 'US', name: 'Estados Unidos' },
+    { code: 'CA', name: 'Canadá' },
+    { code: 'MX', name: 'México' },
+    { code: 'AR', name: 'Argentina' },
+    { code: 'BO', name: 'Bolivia' },
+    { code: 'BR', name: 'Brasil' },
+    { code: 'CL', name: 'Chile' },
+    { code: 'CR', name: 'Costa Rica' },
+    { code: 'CU', name: 'Cuba' },
+    { code: 'DO', name: 'República Dominicana' },
+    { code: 'EC', name: 'Ecuador' },
+    { code: 'SV', name: 'El Salvador' },
+    { code: 'GT', name: 'Guatemala' },
+    { code: 'HN', name: 'Honduras' },
+    { code: 'NI', name: 'Nicaragua' },
+    { code: 'PA', name: 'Panamá' },
+    { code: 'PY', name: 'Paraguay' },
+    { code: 'PE', name: 'Perú' },
+    { code: 'PR', name: 'Puerto Rico' },
+    { code: 'UY', name: 'Uruguay' },
+    { code: 'VE', name: 'Venezuela' },
+    { code: 'ES', name: 'España' },
+    { code: 'DE', name: 'Alemania' },
+    { code: 'FR', name: 'Francia' },
+    { code: 'IT', name: 'Italia' },
+    { code: 'PT', name: 'Portugal' },
+    { code: 'GB', name: 'Reino Unido' },
+    { code: 'IE', name: 'Irlanda' },
+    { code: 'NL', name: 'Países Bajos' },
+    { code: 'BE', name: 'Bélgica' },
+    { code: 'LU', name: 'Luxemburgo' },
+    { code: 'CH', name: 'Suiza' },
+    { code: 'AT', name: 'Austria' },
+    { code: 'DK', name: 'Dinamarca' },
+    { code: 'SE', name: 'Suecia' },
+    { code: 'NO', name: 'Noruega' },
+    { code: 'FI', name: 'Finlandia' },
+    { code: 'IS', name: 'Islandia' },
+    { code: 'PL', name: 'Polonia' },
+    { code: 'CZ', name: 'República Checa' },
+    { code: 'SK', name: 'Eslovaquia' },
+    { code: 'HU', name: 'Hungría' },
+    { code: 'RO', name: 'Rumania' },
+    { code: 'BG', name: 'Bulgaria' },
+    { code: 'GR', name: 'Grecia' },
+    { code: 'HR', name: 'Croacia' },
+    { code: 'SI', name: 'Eslovenia' },
+    { code: 'EE', name: 'Estonia' },
+    { code: 'LV', name: 'Letonia' },
+    { code: 'LT', name: 'Lituania' },
+    { code: 'MT', name: 'Malta' },
+    { code: 'CY', name: 'Chipre' },
+    { code: 'TR', name: 'Turquía' },
+    { code: 'IL', name: 'Israel' },
+    { code: 'AE', name: 'Emiratos Árabes Unidos' },
+    { code: 'SA', name: 'Arabia Saudí' },
+    { code: 'JP', name: 'Japón' },
+    { code: 'KR', name: 'Corea del Sur' },
+    { code: 'CN', name: 'China' },
+    { code: 'HK', name: 'Hong Kong' },
+    { code: 'TW', name: 'Taiwán' },
+    { code: 'SG', name: 'Singapur' },
+    { code: 'MY', name: 'Malasia' },
+    { code: 'TH', name: 'Tailandia' },
+    { code: 'PH', name: 'Filipinas' },
+    { code: 'ID', name: 'Indonesia' },
+    { code: 'VN', name: 'Vietnam' },
+    { code: 'IN', name: 'India' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'NZ', name: 'Nueva Zelanda' },
+    { code: 'ZA', name: 'Sudáfrica' },
+    { code: 'EG', name: 'Egipto' },
+    { code: 'MA', name: 'Marruecos' },
+    { code: 'NG', name: 'Nigeria' },
+    { code: 'KE', name: 'Kenia' }
+];
+
+function populateCountrySelects() {
+    ['recipient-country', 'sender-country'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const defaultCode = id === 'sender-country' ? 'CO' : 'US';
+        sel.innerHTML = COUNTRIES.map(c =>
+            `<option value="${c.code}"${c.code === defaultCode ? ' selected' : ''}>${c.name} (${c.code})</option>`
+        ).join('');
+    });
+}
+
 // Global Application State
 const state = {
     lang: 'es',
@@ -628,6 +719,9 @@ function initEventListeners() {
         e.preventDefault();
         submitPostcardOrder();
     });
+
+    // Populate country selects from COUNTRIES array
+    populateCountrySelects();
 
     // Tourist mode toggle: pre-fill sender with default address (Postales Colombia)
     const touristToggle = document.getElementById('sender-tourist-toggle');
