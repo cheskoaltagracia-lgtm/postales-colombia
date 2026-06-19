@@ -308,6 +308,112 @@ const i18n = {
 let canvas, ctx;
 let loadedImage = null;
 
+// ===== Persistencia del progreso del cliente (anti-perdida por refresh / caida de internet) =====
+const WIZARD_STATE_KEY = 'postales_wizard_state';
+let _wizardSaveTimer = null;
+
+function saveWizardState() {
+    clearTimeout(_wizardSaveTimer);
+    _wizardSaveTimer = setTimeout(() => {
+        if (!state.currentStep || state.currentStep < 1) return; // solo guardar dentro del wizard
+        const base = {
+            v: 1,
+            currentStep: state.currentStep,
+            rotation: state.rotation,
+            filters: state.filters,
+            frontText: state.frontText,
+            message: state.message,
+            sender: state.sender,
+            recipient: state.recipient,
+            lang: state.lang
+        };
+        try {
+            localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(Object.assign({}, base, { selectedPhotoSrc: state.selectedPhotoSrc })));
+        } catch (e) {
+            // La foto puede ser muy grande para localStorage: guardar al menos el progreso sin la foto
+            try { localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(base)); } catch (e2) {}
+        }
+    }, 400);
+}
+
+function clearWizardState() {
+    try { localStorage.removeItem(WIZARD_STATE_KEY); } catch (e) {}
+}
+
+function restoreWizardState() {
+    let data;
+    try { data = JSON.parse(localStorage.getItem(WIZARD_STATE_KEY)); } catch (e) { return; }
+    if (!data || !data.currentStep || data.currentStep < 1) return;
+
+    // Idioma
+    if (data.lang) updateLanguage(data.lang);
+
+    // Filtros (deben quedar antes de dibujar la foto)
+    if (data.filters) state.filters = Object.assign(state.filters, data.filters);
+    const bSlider = document.getElementById('slider-brightness');
+    const cSlider = document.getElementById('slider-contrast');
+    if (bSlider) { bSlider.value = state.filters.brightness; document.getElementById('val-brightness').textContent = state.filters.brightness + '%'; }
+    if (cSlider) { cSlider.value = state.filters.contrast; document.getElementById('val-contrast').textContent = state.filters.contrast + '%'; }
+    document.querySelectorAll('.filter-preset-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-filter') === state.filters.preset);
+    });
+
+    // Texto del frente
+    if (typeof data.frontText === 'string') {
+        state.frontText = data.frontText;
+        const ft = document.getElementById('front-text-input');
+        if (ft) ft.value = data.frontText;
+    }
+
+    // Campos del formulario: setear valor y disparar 'input' para reusar la logica existente
+    const restoreMap = [
+        ['message-input', data.message || ''],
+        ['sender-name', (data.sender || {}).name],
+        ['sender-address1', (data.sender || {}).address_line1],
+        ['sender-city', (data.sender || {}).address_city],
+        ['sender-state', (data.sender || {}).address_state],
+        ['sender-zip', (data.sender || {}).address_zip],
+        ['sender-country', (data.sender || {}).address_country],
+        ['recipient-name', (data.recipient || {}).name],
+        ['recipient-address1', (data.recipient || {}).address_line1],
+        ['recipient-address2', (data.recipient || {}).address_line2],
+        ['recipient-city', (data.recipient || {}).address_city],
+        ['recipient-state', (data.recipient || {}).address_state],
+        ['recipient-zip', (data.recipient || {}).address_zip],
+        ['recipient-country', (data.recipient || {}).address_country]
+    ];
+    restoreMap.forEach(pair => {
+        const id = pair[0], val = pair[1];
+        if (val === undefined || val === null) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // Foto: al cargar restaura rotacion y redibuja con los filtros
+    if (data.selectedPhotoSrc) {
+        state.selectedPhotoSrc = data.selectedPhotoSrc;
+        loadedImage = new Image();
+        const ph = document.getElementById('upload-placeholder');
+        if (ph) ph.style.display = 'none';
+        loadedImage.onload = () => {
+            state.rotation = data.rotation || 0;
+            drawEditedImage();
+            const nextBtn = document.getElementById('step1-next');
+            if (nextBtn) nextBtn.removeAttribute('disabled');
+            const miniFront = document.getElementById('card-front-mini');
+            if (miniFront) { try { miniFront.src = canvas.toDataURL('image/jpeg', 0.85); } catch (e) {} }
+            generateLobJSON();
+        };
+        loadedImage.src = data.selectedPhotoSrc;
+    }
+
+    // Volver al paso donde estaba el cliente
+    showView('view-step-' + data.currentStep);
+    generateLobJSON();
+}
+
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
     canvas = document.getElementById('editor-canvas');
@@ -329,6 +435,13 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLanguage(state.lang);
     updateStepsBar();
     generateLobJSON();
+
+    // Auto-guardar el progreso del cliente ante cualquier cambio (anti-perdida por refresh)
+    document.addEventListener('input', saveWizardState);
+    document.addEventListener('change', saveWizardState);
+
+    // Restaurar progreso si el cliente refresco la pagina o se le cayo el internet
+    restoreWizardState();
 });
 
 // Update DOM elements based on Selected Language
@@ -414,6 +527,8 @@ function showView(viewId) {
     
     // Smooth scroll to top of panel
     document.getElementById('app-card-panel').scrollIntoView({ behavior: 'smooth' });
+
+    saveWizardState();
 }
 
 // Update the top step indicator bar
@@ -549,6 +664,7 @@ function initEventListeners() {
             btn.classList.add('active');
             state.filters.preset = btn.getAttribute('data-filter');
             drawEditedImage();
+            saveWizardState();
         });
     });
 
@@ -557,6 +673,7 @@ function initEventListeners() {
         if (!loadedImage) return;
         state.rotation = (state.rotation + 90) % 360;
         drawEditedImage();
+        saveWizardState();
     });
 
     // Front text overlay input
@@ -963,6 +1080,7 @@ function loadPhoto(src) {
         drawEditedImage();
         document.getElementById('step1-next').removeAttribute('disabled');
         generateLobJSON();
+        saveWizardState();
     };
     loadedImage.src = src;
 }
@@ -1397,6 +1515,7 @@ async function handleMercadoPagoReturn() {
         }
 
         sessionStorage.removeItem(MP_PENDING_KEY);
+        clearWizardState();
         state.cart = [];
 
         showView('view-success');
