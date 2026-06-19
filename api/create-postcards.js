@@ -1,6 +1,6 @@
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 
-const PRICE_PER_POSTCARD_COP = 12200;
+const PRICE_PER_POSTCARD_COP = 18000;
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
 function validateAddress(addr) {

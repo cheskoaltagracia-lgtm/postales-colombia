@@ -122,8 +122,8 @@ const state = {
     apiKey: 'test_pub_f29dcfc354131d3aac2c99f469d1c1a',
     isDevMode: false,
     cart: [],
-    pricePerPostcardUSD: 3.00,
-    pricePerPostcardCOP: 12200
+    pricePerPostcardUSD: 4.50,
+    pricePerPostcardCOP: 18000
 };
 
 // Bilingual dictionary
@@ -195,7 +195,7 @@ const i18n = {
         btn_add_another: "Agregar otra postal",
         checkout_summary_subtotal: "Postales",
         success_title: "¡Postal Enviada con Éxito!",
-        success_desc: "Hemos procesado tu pago de $3.00 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.",
+        success_desc: "Hemos procesado tu pago de $4.50 USD. La postal ha sido enviada al centro de impresión más cercano al destino y está en camino.",
         timeline_title: "Estado del Envío (Simulado)",
         timeline_step1_title: "Pago Confirmado & API de Impresión Contactada",
         timeline_step1_desc: "La postal se registró exitosamente en el sistema de Lob.",
@@ -282,7 +282,7 @@ const i18n = {
         btn_add_another: "Add another postcard",
         checkout_summary_subtotal: "Postcards",
         success_title: "Postcard Sent Successfully!",
-        success_desc: "We have processed your payment of $3.00 USD. The postcard has been sent to the printing center closest to its destination.",
+        success_desc: "We have processed your payment of $4.50 USD. The postcard has been sent to the printing center closest to its destination.",
         timeline_title: "Delivery Status (Simulated)",
         timeline_step1_title: "Payment Confirmed & Print API Contacted",
         timeline_step1_desc: "Postcard has been registered successfully in the Lob system.",

@@ -1,6 +1,6 @@
 const { MercadoPagoConfig, Preference } = require('mercadopago');
 
-const PRICE_PER_POSTCARD_COP = 12200;
+const PRICE_PER_POSTCARD_COP = 18000;
 const MAX_QUANTITY = 50;
 
 module.exports = async (req, res) => {
