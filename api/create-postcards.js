@@ -10,31 +10,63 @@ function validateAddress(addr) {
 const validateRecipient = validateAddress;
 const validateSender = validateAddress;
 
-async function createOnePostcardInLob(postcard) {
-  const lobBody = {
-    description: postcard.description || 'Postales Colombia',
-    to: postcard.to,
-    from: postcard.from,
-    front: postcard.front,
-    message: postcard.message || '',
-    size: postcard.size || '4x6',
-    mail_type: 'first_class'
-  };
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\r?\n/g, '<br>');
+}
 
+async function createOnePostcardInLob(postcard) {
   const authHeader = 'Basic ' + Buffer.from(LOB_API_KEY + ':').toString('base64');
+
+  const form = new FormData();
+  form.append('description', postcard.description || 'Postales Colombia');
+  form.append('size', postcard.size || '4x6');
+  form.append('mail_type', 'first_class');
+
+  // Direcciones en notacion bracket para multipart (to[name], from[name], etc.)
+  const appendAddress = (key, addr) => {
+    if (!addr) return;
+    ['name', 'address_line1', 'address_line2', 'address_city', 'address_state', 'address_zip', 'address_country'].forEach(field => {
+      const val = addr[field];
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        form.append(`${key}[${field}]`, String(val).trim());
+      }
+    });
+  };
+  appendAddress('to', postcard.to);
+  appendAddress('from', postcard.from);
+
+  // FRENTE: la foto va como ARCHIVO de imagen, NO como texto base64 (eso causaba el error 422)
+  const frontDataUrl = postcard.front || '';
+  const commaIdx = frontDataUrl.indexOf(',');
+  const base64 = commaIdx >= 0 ? frontDataUrl.slice(commaIdx + 1) : frontDataUrl;
+  const mimeMatch = frontDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const ext = mime === 'image/png' ? 'png' : 'jpg';
+  const buffer = Buffer.from(base64, 'base64');
+  form.append('front', new Blob([buffer], { type: mime }), `front.${ext}`);
+
+  // REVERSO: HTML corto con el mensaje del cliente (Lob reserva solo el area de la direccion a la derecha)
+  const msg = escapeHtml(postcard.message) || '¡Saludos desde Colombia!';
+  const backHtml = `<html><head><meta charset="utf-8"><style>` +
+    `html,body{margin:0;padding:0;width:6.25in;height:4.25in;}` +
+    `.msg{box-sizing:border-box;width:3.4in;padding:0.45in 0.4in;font-family:Georgia,'Times New Roman',serif;font-size:14pt;color:#1a1a1a;line-height:1.5;}` +
+    `</style></head><body><div class="msg">${msg}</div></body></html>`;
+  form.append('back', backHtml);
 
   const response = await fetch('https://api.lob.com/v1/postcards', {
     method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(lobBody)
+    headers: { 'Authorization': authHeader }, // sin Content-Type: FormData pone el boundary correcto
+    body: form
   });
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(`Lob error: ${data.error?.message || response.status}`);
+    const msg = data && data.error ? (data.error.message || JSON.stringify(data.error)) : ('HTTP ' + response.status);
+    throw new Error(`Lob error: ${msg}`);
   }
   return data;
 }
@@ -112,7 +144,14 @@ module.exports = async (req, res) => {
     for (let i = 0; i < postcards.length; i++) {
       try {
         const lobResult = await createOnePostcardInLob(postcards[i]);
-        results.push({ index: i, id: lobResult.id, ok: true });
+        results.push({
+          index: i,
+          ok: true,
+          id: lobResult.id,
+          url: lobResult.url,                                 // PDF de como quedo impresa
+          expectedDeliveryDate: lobResult.expected_delivery_date,
+          carrier: lobResult.carrier
+        });
       } catch (err) {
         console.error(`Lob error on postcard ${i}:`, err);
         errors.push({ index: i, error: err.message });

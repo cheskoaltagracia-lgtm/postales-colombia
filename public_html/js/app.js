@@ -1085,42 +1085,44 @@ function loadPhoto(src) {
     loadedImage.src = src;
 }
 
-// Draw image on Canvas applying rotations and filters
-function drawEditedImage() {
+// Draw image on Canvas applying rotations and filters.
+// Acepta un canvas/contexto opcional para poder renderizar tambien en ALTA RESOLUCION
+// (offscreen) sin cambiar el editor en pantalla.
+function drawEditedImage(targetCanvas, targetCtx) {
     if (!loadedImage) return;
+    const cnv = targetCanvas || canvas;
+    const c = targetCtx || ctx;
 
     // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
+    c.clearRect(0, 0, cnv.width, cnv.height);
+    c.save();
 
     // 1. Move to center to execute rotation
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate((state.rotation * Math.PI) / 180);
+    c.translate(cnv.width / 2, cnv.height / 2);
+    c.rotate((state.rotation * Math.PI) / 180);
 
     // Calculate dimensions to crop image (cover fit)
     let drawWidth, drawHeight;
     const isSideways = state.rotation === 90 || state.rotation === 270;
-    
+
     // If rotated sideways, we map canvas height to width and vice versa
-    const canvasW = isSideways ? canvas.height : canvas.width;
-    const canvasH = isSideways ? canvas.width : canvas.height;
-    
+    const canvasW = isSideways ? cnv.height : cnv.width;
+    const canvasH = isSideways ? cnv.width : cnv.height;
+
     const imageRatio = loadedImage.width / loadedImage.height;
     const canvasRatio = canvasW / canvasH;
 
     if (imageRatio > canvasRatio) {
-        // Image is wider than canvas ratio
         drawHeight = canvasH;
         drawWidth = canvasH * imageRatio;
     } else {
-        // Image is taller than canvas ratio
         drawWidth = canvasW;
         drawHeight = canvasW / imageRatio;
     }
 
     // Apply Filter presets in drawing context (CSS filter style)
     let filterString = `brightness(${state.filters.brightness}%) contrast(${state.filters.contrast}%)`;
-    
+
     switch (state.filters.preset) {
         case 'vintage':
             filterString += ' sepia(60%) saturate(80%) hue-rotate(-10deg)';
@@ -1134,43 +1136,52 @@ function drawEditedImage() {
         default:
             break;
     }
-    
-    ctx.filter = filterString;
+
+    c.filter = filterString;
 
     // Draw image centered in translation
-    ctx.drawImage(
-        loadedImage, 
-        -drawWidth / 2, 
-        -drawHeight / 2, 
-        drawWidth, 
-        drawHeight
-    );
+    c.drawImage(loadedImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
     // Apply warm overlay manually if warm preset selected
     if (state.filters.preset === 'warm') {
-        ctx.filter = 'none';
-        ctx.fillStyle = 'rgba(255, 128, 0, 0.08)';
-        ctx.fillRect(-drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+        c.filter = 'none';
+        c.fillStyle = 'rgba(255, 128, 0, 0.08)';
+        c.fillRect(-drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     }
 
-    ctx.restore(); // Restore context without rotation & filters
+    c.restore(); // Restore context without rotation & filters
 
     // 2. Draw front text overlay if exists (always drawn straight)
+    // Escalamos tipografia/offset segun el ancho del canvas (base de diseno = 600px)
     if (state.frontText) {
-        ctx.save();
-        ctx.font = 'bold 32px Outfit, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'left';
-        
-        // Add drop shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        
-        // Draw bottom-left of card
-        ctx.fillText(state.frontText, 25, canvas.height - 30);
-        ctx.restore();
+        const scale = cnv.width / 600;
+        c.save();
+        c.font = `bold ${Math.round(32 * scale)}px Outfit, sans-serif`;
+        c.fillStyle = '#ffffff';
+        c.textAlign = 'left';
+        c.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        c.shadowBlur = 8 * scale;
+        c.shadowOffsetX = 2 * scale;
+        c.shadowOffsetY = 2 * scale;
+        c.fillText(state.frontText, 25 * scale, cnv.height - 30 * scale);
+        c.restore();
+    }
+}
+
+// Genera la foto del FRENTE en ALTA RESOLUCION para Lob (300 DPI, 4x6 con sangrado).
+// El editor en pantalla sigue a 600x400; esto solo se usa al armar el pedido.
+function getHighResFrontDataURL() {
+    if (!loadedImage) return getCurrentImageDataURL();
+    try {
+        const off = document.createElement('canvas');
+        off.width = 1875;   // 6.25in x 300dpi
+        off.height = 1275;  // 4.25in x 300dpi
+        const offCtx = off.getContext('2d');
+        drawEditedImage(off, offCtx);
+        return off.toDataURL('image/jpeg', 0.92);
+    } catch (e) {
+        console.warn('No se pudo generar alta resolucion, uso la normal:', e);
+        return getCurrentImageDataURL();
     }
 }
 
@@ -1261,7 +1272,7 @@ function snapshotCurrentPostcard() {
         selectedPhotoSrc: state.selectedPhotoSrc,
         filters: { ...state.filters },
         rotation: state.rotation,
-        imageDataURL: getCurrentImageDataURL()
+        imageDataURL: getHighResFrontDataURL()
     };
 }
 
@@ -1506,11 +1517,28 @@ async function handleMercadoPagoReturn() {
         const ids = lobData.ids || [];
         if (successIdEl) successIdEl.textContent = ids.join(', ') || '(sin IDs)';
         const totalUSD = formatMoneyUSD(pending.quantity * state.pricePerPostcardUSD);
+        const firstOk = (lobData.results || []).find(r => r.ok) || {};
+        let etaTxt = '';
+        if (firstOk.expectedDeliveryDate) {
+            try {
+                etaTxt = new Date(firstOk.expectedDeliveryDate).toLocaleDateString(
+                    state.lang === 'es' ? 'es-CO' : 'en-US',
+                    { year: 'numeric', month: 'long', day: 'numeric' }
+                );
+            } catch (e) { etaTxt = firstOk.expectedDeliveryDate; }
+        }
+        const pdfLink = firstOk.url
+            ? `<br><a href="${firstOk.url}" target="_blank" rel="noopener">${state.lang === 'es' ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a>`
+            : '';
         if (successDescEl) {
             if (state.lang === 'es') {
-                successDescEl.innerHTML = `¡Pago de <strong>${totalUSD}</strong> verificado y <strong>${ids.length}</strong> postal(es) impresas! IDs: <strong>${ids.join(', ')}</strong>.`;
+                successDescEl.innerHTML = `¡Pago de <strong>${totalUSD}</strong> verificado! <strong>${ids.length}</strong> postal(es) en camino.`
+                    + (etaTxt ? ` Entrega estimada: <strong>${etaTxt}</strong>.` : '')
+                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink;
             } else {
-                successDescEl.innerHTML = `Payment of <strong>${totalUSD}</strong> verified and <strong>${ids.length}</strong> postcard(s) printed. IDs: <strong>${ids.join(', ')}</strong>.`;
+                successDescEl.innerHTML = `Payment of <strong>${totalUSD}</strong> verified! <strong>${ids.length}</strong> postcard(s) on the way.`
+                    + (etaTxt ? ` Estimated delivery: <strong>${etaTxt}</strong>.` : '')
+                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink;
             }
         }
 
