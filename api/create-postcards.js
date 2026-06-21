@@ -3,6 +3,17 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const PRICE_PER_POSTCARD_COP = 18000;
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
+// Lob exige que la direccion de RETORNO (from) sea de EE.UU.
+// ⚠️ PLACEHOLDER DE PRUEBA — Francisco debe reemplazarla por la direccion de retorno REAL
+// de Postales Colombia en EE.UU. (o pedirle a Lob habilitar remitente internacional).
+const RETURN_ADDRESS = {
+  address_line1: '185 Berry St Ste 6100',
+  address_city: 'San Francisco',
+  address_state: 'CA',
+  address_zip: '94107',
+  address_country: 'US'
+};
+
 function validateAddress(addr) {
   return !!(addr && addr.name && addr.address_line1 && addr.address_city && addr.address_zip && addr.address_country);
 }
@@ -37,7 +48,11 @@ async function createOnePostcardInLob(postcard) {
     });
   };
   appendAddress('to', postcard.to);
-  appendAddress('from', postcard.from);
+  // El remitente que ve el destinatario conserva el nombre, pero la direccion de retorno es US (requisito de Lob)
+  appendAddress('from', Object.assign(
+    { name: (postcard.from && postcard.from.name) || 'Postales Colombia' },
+    RETURN_ADDRESS
+  ));
 
   // FRENTE: la foto va como ARCHIVO de imagen, NO como texto base64 (eso causaba el error 422)
   const frontDataUrl = postcard.front || '';
