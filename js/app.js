@@ -1529,7 +1529,12 @@ async function handleMercadoPagoReturn() {
             })
         });
         const lobData = await lobResp.json();
-        if (!lobResp.ok) throw new Error(lobData.error || 'Error creando las postales');
+        if (!lobResp.ok) {
+            const detail = lobData.error
+                || (lobData.errors && lobData.errors[0] && lobData.errors[0].error)
+                || 'Error creando las postales';
+            throw new Error(detail);
+        }
 
         displayAPIResponse(lobData);
         const ids = lobData.ids || [];

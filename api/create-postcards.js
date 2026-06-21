@@ -24,7 +24,7 @@ async function createOnePostcardInLob(postcard) {
   const form = new FormData();
   form.append('description', postcard.description || 'Postales Colombia');
   form.append('size', postcard.size || '4x6');
-  form.append('mail_type', 'first_class');
+  form.append('mail_type', 'usps_first_class');
 
   // Direcciones en notacion bracket para multipart (to[name], from[name], etc.)
   const appendAddress = (key, addr) => {
