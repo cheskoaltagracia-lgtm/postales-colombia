@@ -116,11 +116,7 @@ module.exports = async (req, res) => {
           error: `Postcard ${i + 1}: invalid recipient fields`
         });
       }
-      if (!validateSender(postcards[i].from)) {
-        return res.status(400).json({
-          error: `Postcard ${i + 1}: invalid sender fields`
-        });
-      }
+      // El remitente ya no se valida: la direccion de retorno es fija (US) y solo usamos el nombre (opcional).
       if (!postcards[i].front) {
         return res.status(400).json({
           error: `Postcard ${i + 1}: missing front image`

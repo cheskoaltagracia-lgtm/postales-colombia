@@ -21,6 +21,7 @@
             <div>Postales<span>Colombia</span></div>
         </div>
         <div class="header-actions">
+            <button id="nav-track-btn" style="background:none;border:1px solid var(--gold,#C9A14B);color:var(--text-white,#fff);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;margin-right:8px;">📍 <span data-i18n="nav_track">Rastrear</span></button>
             <!-- Language Switcher -->
             <div class="lang-toggle" id="lang-toggle">
                 <button class="lang-btn active" data-lang="es">ES</button>
@@ -225,43 +226,10 @@
                             <!-- Section: Sender -->
                             <div class="form-group-title">👤 <span data-i18n="section_sender">Remitente (Tú)</span></div>
 
-                            <div class="form-field tourist-toggle-field">
-                                <label class="tourist-toggle-label">
-                                    <input type="checkbox" id="sender-tourist-toggle">
-                                    <span data-i18n="tourist_toggle">Soy turista — usar dirección predeterminada de Postales Colombia</span>
-                                </label>
-                            </div>
-
+                            <p style="font-size:0.85rem;color:var(--text-muted,#888);margin:-8px 0 4px;" data-i18n="sender_hint">Solo tu nombre, para que sepan de quién es. No necesitas poner dirección.</p>
                             <div class="form-field">
                                 <label for="sender-name" data-i18n="label_full_name">Nombre Completo</label>
-                                <input type="text" id="sender-name" placeholder="Tu nombre">
-                            </div>
-
-                            <div class="form-field">
-                                <label for="sender-address1" data-i18n="label_address1">Dirección Línea 1</label>
-                                <input type="text" id="sender-address1" placeholder="Calle 123 # 45-67">
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-field">
-                                    <label for="sender-city" data-i18n="label_city">Ciudad</label>
-                                    <input type="text" id="sender-city" placeholder="Medellín">
-                                </div>
-                                <div class="form-field">
-                                    <label for="sender-state" data-i18n="label_state">Estado / Región</label>
-                                    <input type="text" id="sender-state" placeholder="Antioquia">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-field">
-                                    <label for="sender-zip" data-i18n="label_zip">Código Postal</label>
-                                    <input type="text" id="sender-zip" placeholder="050001">
-                                </div>
-                                <div class="form-field">
-                                    <label for="sender-country" data-i18n="label_country">País</label>
-                                    <select id="sender-country"></select>
-                                </div>
+                                <input type="text" id="sender-name" placeholder="Tu nombre (opcional)">
                             </div>
 
                             <!-- Section: Recipient -->
@@ -538,8 +506,29 @@
                         </div>
                     </div>
 
+                    <button class="cta-button" id="btn-success-track" style="margin-top: 10px;">
+                        📍 <span data-i18n="btn_track_this">Rastrear esta postal</span>
+                    </button>
                     <button class="cta-button" id="btn-success-restart" style="margin-top: 10px;">
                         🔄 <span data-i18n="btn_send_another">Enviar Otra Postal</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- TRACK VIEW -->
+            <section id="view-track" class="view-section">
+                <div class="step-container" style="max-width:640px;">
+                    <h2 class="view-title">📍 <span data-i18n="track_title">Rastrea tu postal</span></h2>
+                    <p data-i18n="track_desc">Ingresa el número de tu postal (empieza con <strong>psc_</strong>) para ver su estado en tiempo real.</p>
+                    <div class="form-field">
+                        <input type="text" id="track-id-input" placeholder="psc_..." style="font-family:monospace;">
+                    </div>
+                    <button class="cta-button" id="track-btn">
+                        🔎 <span data-i18n="track_btn">Rastrear</span>
+                    </button>
+                    <div id="track-result" style="margin-top:24px;"></div>
+                    <button class="editor-btn" id="track-back-btn" style="margin-top:24px;">
+                        ← <span data-i18n="btn_back">Atrás</span>
                     </button>
                 </div>
             </section>

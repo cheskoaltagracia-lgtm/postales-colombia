@@ -510,7 +510,7 @@ function showView(viewId) {
     
     // Hide/Show steps bar depending on view
     const stepsBar = document.getElementById('steps-bar');
-    if (viewId === 'view-landing' || viewId === 'view-success') {
+    if (viewId === 'view-landing' || viewId === 'view-success' || viewId === 'view-track') {
         stepsBar.style.display = 'none';
     } else {
         stepsBar.style.display = 'flex';
@@ -717,11 +717,6 @@ function initEventListeners() {
 
     const formFields = [
         { inputId: 'sender-name', stateKey: 'name', parent: 'sender' },
-        { inputId: 'sender-address1', stateKey: 'address_line1', parent: 'sender' },
-        { inputId: 'sender-city', stateKey: 'address_city', parent: 'sender' },
-        { inputId: 'sender-state', stateKey: 'address_state', parent: 'sender' },
-        { inputId: 'sender-zip', stateKey: 'address_zip', parent: 'sender' },
-        { inputId: 'sender-country', stateKey: 'address_country', parent: 'sender' },
         { inputId: 'recipient-name', stateKey: 'name', parent: 'recipient', prevId: 'card-back-name' },
         { inputId: 'recipient-address1', stateKey: 'address_line1', parent: 'recipient', prevId: 'card-back-addr1' },
         { inputId: 'recipient-address2', stateKey: 'address_line2', parent: 'recipient', prevId: 'card-back-addr2' },
@@ -878,6 +873,28 @@ function initEventListeners() {
 
     // Handle return from MercadoPago
     handleMercadoPagoReturn();
+
+    // ===== Rastreo: enganchar botones =====
+    const navTrackBtn = document.getElementById('nav-track-btn');
+    if (navTrackBtn) navTrackBtn.addEventListener('click', () => showView('view-track'));
+
+    const trackBtn = document.getElementById('track-btn');
+    if (trackBtn) trackBtn.addEventListener('click', trackPostcard);
+
+    const trackInput = document.getElementById('track-id-input');
+    if (trackInput) trackInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') trackPostcard(); });
+
+    const trackBackBtn = document.getElementById('track-back-btn');
+    if (trackBackBtn) trackBackBtn.addEventListener('click', () => showView('view-landing'));
+
+    const successTrackBtn = document.getElementById('btn-success-track');
+    if (successTrackBtn) successTrackBtn.addEventListener('click', () => {
+        const idEl = document.getElementById('success-lob-id');
+        const tInput = document.getElementById('track-id-input');
+        if (idEl && tInput) tInput.value = (idEl.textContent || '').trim();
+        showView('view-track');
+        trackPostcard();
+    });
 
     // Success Restart Button
     document.getElementById('btn-success-restart').addEventListener('click', () => {
@@ -1368,6 +1385,68 @@ function escapeHTML(str) {
 // ===== MercadoPago =====
 
 const MP_PENDING_KEY = 'postales_pending_cart';
+
+// ===== Rastreo de postal (consulta el estado real a /api/track-postcard, que pregunta a Lob con la llave secreta) =====
+async function trackPostcard() {
+    const input = document.getElementById('track-id-input');
+    const out = document.getElementById('track-result');
+    if (!input || !out) return;
+    const id = (input.value || '').trim();
+    if (!/^psc_[a-zA-Z0-9]+$/.test(id)) {
+        out.innerHTML = `<p style="color:#ff6b6b;">${state.lang === 'es' ? 'Número inválido. Debe empezar con "psc_".' : 'Invalid number. It must start with "psc_".'}</p>`;
+        return;
+    }
+    out.innerHTML = `<p>${state.lang === 'es' ? 'Buscando...' : 'Searching...'}</p>`;
+    try {
+        const resp = await fetch('/api/track-postcard?id=' + encodeURIComponent(id));
+        const data = await resp.json();
+        if (!resp.ok) {
+            out.innerHTML = `<p style="color:#ff6b6b;">${data.error || (state.lang === 'es' ? 'No encontramos esa postal.' : 'Postcard not found.')}</p>`;
+            return;
+        }
+        out.innerHTML = renderTracking(data);
+    } catch (e) {
+        out.innerHTML = `<p style="color:#ff6b6b;">${state.lang === 'es' ? 'Error consultando el estado. Intenta de nuevo.' : 'Error checking status. Try again.'}</p>`;
+    }
+}
+
+function renderTracking(data) {
+    const es = state.lang === 'es';
+    const labels = {
+        'postcard.created': es ? 'Creada' : 'Created',
+        'postcard.rendered_pdf': es ? 'Lista para imprimir' : 'Ready to print',
+        'postcard.mailed': es ? 'Enviada al correo' : 'Mailed',
+        'postcard.in_transit': es ? 'En tránsito' : 'In transit',
+        'postcard.in_local_area': es ? 'Cerca del destino' : 'Near destination',
+        'postcard.processed_for_delivery': es ? '¡Está por llegar!' : 'Out for delivery',
+        'postcard.delivered': es ? '¡Entregada!' : 'Delivered',
+        'postcard.re-routed': es ? 'Redirigida' : 'Re-routed',
+        'postcard.returned_to_sender': es ? 'Devuelta al remitente' : 'Returned to sender'
+    };
+    let html = '';
+    if (data.expectedDeliveryDate) {
+        let d = data.expectedDeliveryDate;
+        try { d = new Date(data.expectedDeliveryDate).toLocaleDateString(es ? 'es-CO' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) {}
+        html += `<p>${es ? 'Entrega estimada' : 'Estimated delivery'}: <strong>${d}</strong></p>`;
+    }
+    const events = (data.trackingEvents || []).slice().reverse();
+    if (!events.length) {
+        html += `<p>${es ? 'Aún no hay movimientos. Tu postal quedó registrada y pronto sale. Vuelve más tarde.' : 'No movements yet. Your postcard is registered and will ship soon. Check back later.'}</p>`;
+    } else {
+        html += '<ul style="list-style:none;padding:0;margin:12px 0;">';
+        events.forEach((e) => {
+            const label = labels[e.name] || e.name;
+            let t = '';
+            if (e.time) { try { t = new Date(e.time).toLocaleString(es ? 'es-CO' : 'en-US'); } catch (x) { t = e.time; } }
+            html += `<li style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.12);">✅ <strong>${label}</strong>${t ? ` <span style="color:#888;font-size:0.85rem;">— ${t}</span>` : ''}</li>`;
+        });
+        html += '</ul>';
+    }
+    if (data.url) {
+        html += `<p style="margin-top:12px;"><a href="${data.url}" target="_blank" rel="noopener">${es ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a></p>`;
+    }
+    return html;
+}
 
 function buildLobBodiesFromPostcards(allPostcards) {
     return allPostcards.map(p => ({
