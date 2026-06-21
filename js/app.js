@@ -1417,6 +1417,17 @@ async function submitPostcardOrder() {
         const quantity = allPostcards.length;
         const lobBodies = buildLobBodiesFromPostcards(allPostcards);
 
+        // SEGURIDAD: nunca cobrar sin la foto. Si a alguna postal le falta el frente, abortar ANTES de pagar.
+        const missingIdx = lobBodies.findIndex(b => !b.front || !String(b.front).startsWith('data:'));
+        if (missingIdx !== -1) {
+            if (errEl) errEl.textContent = state.lang === 'es'
+                ? `Falta la foto de la postal ${missingIdx + 1}. Vuelve al Paso 1, selecciona la foto otra vez y reintenta (no se te cobró nada).`
+                : `Postcard ${missingIdx + 1} is missing its photo. Go back to Step 1, select the photo again and retry (you were not charged).`;
+            payBtn.removeAttribute('disabled');
+            payBtn.innerHTML = originalText;
+            return;
+        }
+
         const prefResp = await fetch('/api/create-preference', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1437,7 +1448,14 @@ async function submitPostcardOrder() {
                 createdAt: Date.now()
             }));
         } catch (storageErr) {
-            console.warn('No se pudo guardar el carrito en sessionStorage:', storageErr);
+            // Si no podemos guardar el pedido, NO redirigir a pagar (evita cobrar sin poder imprimir)
+            console.error('No se pudo guardar el carrito en sessionStorage:', storageErr);
+            if (errEl) errEl.textContent = state.lang === 'es'
+                ? 'No pudimos preparar tu pedido (la imagen pesa demasiado para el navegador). Usa una foto más liviana e inténtalo de nuevo.'
+                : 'We could not prepare your order (image too large for the browser). Use a lighter photo and try again.';
+            payBtn.removeAttribute('disabled');
+            payBtn.innerHTML = originalText;
+            return;
         }
 
         window.location.href = prefData.initPoint;
