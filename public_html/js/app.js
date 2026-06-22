@@ -78,6 +78,13 @@ const COUNTRIES = [
     { code: 'KE', name: 'Kenia' }
 ];
 
+// Estados de EE.UU. (siglas + nombres) para validar el "state" cuando el pais es US.
+const US_STATES = new Set(('AL,AK,AZ,AR,CA,CO,CT,DE,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NY,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VT,VA,WA,WV,WI,WY,DC,ALABAMA,ALASKA,ARIZONA,ARKANSAS,CALIFORNIA,COLORADO,CONNECTICUT,DELAWARE,FLORIDA,GEORGIA,HAWAII,IDAHO,ILLINOIS,INDIANA,IOWA,KANSAS,KENTUCKY,LOUISIANA,MAINE,MARYLAND,MASSACHUSETTS,MICHIGAN,MINNESOTA,MISSISSIPPI,MISSOURI,MONTANA,NEBRASKA,NEVADA,NEW HAMPSHIRE,NEW JERSEY,NEW MEXICO,NEW YORK,NORTH CAROLINA,NORTH DAKOTA,OHIO,OKLAHOMA,OREGON,PENNSYLVANIA,RHODE ISLAND,SOUTH CAROLINA,SOUTH DAKOTA,TENNESSEE,TEXAS,UTAH,VERMONT,VIRGINIA,WASHINGTON,WEST VIRGINIA,WISCONSIN,WYOMING,DISTRICT OF COLUMBIA').split(','));
+
+function isValidUSState(s) {
+    return US_STATES.has(String(s || '').trim().toUpperCase());
+}
+
 function populateCountrySelects() {
     ['recipient-country', 'sender-country'].forEach(id => {
         const sel = document.getElementById(id);
@@ -772,6 +779,13 @@ function initEventListeners() {
         // Validate recipient
         if (!state.recipient.name || !state.recipient.address_line1 || !state.recipient.address_city || !state.recipient.address_zip) {
             alert(state.lang === 'es' ? 'Por favor completa los campos de dirección del destinatario.' : 'Please complete the recipient address fields.');
+            return;
+        }
+        // Si el destinatario es de EE.UU., el "Estado" debe ser válido (si no, Lob lo rechaza)
+        if (state.recipient.address_country === 'US' && !isValidUSState(state.recipient.address_state)) {
+            alert(state.lang === 'es'
+                ? 'El "Estado / Región" no es válido para Estados Unidos.\n\n• Si tu destinatario NO es de EE.UU., cambia el campo "País".\n• Si SÍ es de EE.UU., usa la sigla (ej. FL, NY) o el nombre del estado.'
+                : 'The "State" is not valid for the US.\n\n• If your recipient is NOT in the US, change the "Country" field.\n• If they are, use the abbreviation (e.g. FL) or the full state name.');
             return;
         }
 
@@ -1498,6 +1512,17 @@ async function submitPostcardOrder() {
             if (errEl) errEl.textContent = state.lang === 'es'
                 ? `Falta la foto de la postal ${missingIdx + 1}. Vuelve al Paso 1, selecciona la foto otra vez y reintenta (no se te cobró nada).`
                 : `Postcard ${missingIdx + 1} is missing its photo. Go back to Step 1, select the photo again and retry (you were not charged).`;
+            payBtn.removeAttribute('disabled');
+            payBtn.innerHTML = originalText;
+            return;
+        }
+
+        // SEGURIDAD: si algun destinatario es de EE.UU., el estado debe ser valido (Lob lo rechaza si no -> cobro sin entrega)
+        const badUS = lobBodies.findIndex(b => b.to && b.to.address_country === 'US' && !isValidUSState(b.to.address_state));
+        if (badUS !== -1) {
+            if (errEl) errEl.textContent = state.lang === 'es'
+                ? `Postal ${badUS + 1}: el "Estado" del destinatario no es válido para EE.UU. Si NO es de Estados Unidos, cambia el "País". (No se te cobró.)`
+                : `Postcard ${badUS + 1}: recipient "State" is invalid for the US. If not in the US, change the "Country". (You were not charged.)`;
             payBtn.removeAttribute('disabled');
             payBtn.innerHTML = originalText;
             return;
