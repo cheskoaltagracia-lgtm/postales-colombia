@@ -1625,9 +1625,16 @@ async function handleMercadoPagoReturn() {
                 );
             } catch (e) { etaTxt = firstOk.expectedDeliveryDate; }
         }
-        const pdfLink = firstOk.url
-            ? `<br><a href="${firstOk.url}" target="_blank" rel="noopener">${state.lang === 'es' ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a>`
-            : '';
+        // Mostrar el PDF de CADA postal (antes solo se mostraba la primera)
+        const okResults = (lobData.results || []).filter(r => r.ok && r.url);
+        let pdfLink = '';
+        if (okResults.length === 1) {
+            pdfLink = `<br><a href="${okResults[0].url}" target="_blank" rel="noopener">${state.lang === 'es' ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a>`;
+        } else if (okResults.length > 1) {
+            const lbl = state.lang === 'es' ? 'Postal' : 'Postcard';
+            pdfLink = '<br>' + (state.lang === 'es' ? 'Ver tus postales: ' : 'See your postcards: ')
+                + okResults.map((r, i) => `<a href="${r.url}" target="_blank" rel="noopener">${lbl} ${i + 1} (PDF)</a>`).join(' · ');
+        }
         if (successDescEl) {
             if (state.lang === 'es') {
                 successDescEl.innerHTML = `¡Pago de <strong>${totalUSD}</strong> verificado! <strong>${ids.length}</strong> postal(es) en camino.`
