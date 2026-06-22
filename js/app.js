@@ -928,7 +928,7 @@ function initEventListeners() {
         document.getElementById('recipient-city').value = '';
         document.getElementById('recipient-state').value = '';
         document.getElementById('recipient-zip').value = '';
-        document.getElementById('recipient-country').value = 'US';
+        document.getElementById('recipient-country').value = 'CO';
         
         document.getElementById('slider-brightness').value = 100;
         document.getElementById('val-brightness').textContent = '100%';
@@ -1291,6 +1291,9 @@ function getCurrentImageDataURL() {
 }
 
 function snapshotCurrentPostcard() {
+    // El pais que vale es el que el cliente VE seleccionado en el dropdown (blindaje contra desajustes por resets)
+    const rcSel = document.getElementById('recipient-country');
+    if (rcSel && rcSel.value) state.recipient.address_country = rcSel.value;
     return {
         sender: { ...state.sender },
         recipient: { ...state.recipient },
@@ -1317,6 +1320,8 @@ function clearCurrentPostcard() {
     if (typeof loadedImage !== 'undefined') loadedImage = null;
     ['recipient-name', 'recipient-address1', 'recipient-address2', 'recipient-city', 'recipient-state', 'recipient-zip', 'message-input', 'front-text-input']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const rcEl = document.getElementById('recipient-country');
+    if (rcEl) rcEl.value = state.recipient.address_country; // sincronizar el selector de pais con el estado (evita el desajuste que vio Francisco)
     resetCameraUI();
 }
 
