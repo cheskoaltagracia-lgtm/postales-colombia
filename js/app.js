@@ -1635,15 +1635,24 @@ async function handleMercadoPagoReturn() {
             pdfLink = '<br>' + (state.lang === 'es' ? 'Ver tus postales: ' : 'See your postcards: ')
                 + okResults.map((r, i) => `<a href="${r.url}" target="_blank" rel="noopener">${lbl} ${i + 1} (PDF)</a>`).join(' · ');
         }
+        // Si NO se crearon todas las que se pagaron, avisar claramente (nunca silencioso)
+        const failedErrors = (lobData.errors || []);
+        let warnHtml = '';
+        if (ids.length < pending.quantity || failedErrors.length) {
+            const errMsgs = failedErrors.map(e => e && e.error).filter(Boolean).join(' | ');
+            warnHtml = state.lang === 'es'
+                ? `<br><span style="color:#ffb020;">⚠️ Ojo: se crearon <strong>${ids.length} de ${pending.quantity}</strong> postales. ${failedErrors.length} fallaron${errMsgs ? ': ' + errMsgs : ''}. Guarda tu Payment ID y contáctanos para resolverlo.</span>`
+                : `<br><span style="color:#ffb020;">⚠️ Note: <strong>${ids.length} of ${pending.quantity}</strong> postcards created. ${failedErrors.length} failed${errMsgs ? ': ' + errMsgs : ''}. Save your Payment ID and contact us.</span>`;
+        }
         if (successDescEl) {
             if (state.lang === 'es') {
                 successDescEl.innerHTML = `¡Pago de <strong>${totalUSD}</strong> verificado! <strong>${ids.length}</strong> postal(es) en camino.`
                     + (etaTxt ? ` Entrega estimada: <strong>${etaTxt}</strong>.` : '')
-                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink;
+                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink + warnHtml;
             } else {
                 successDescEl.innerHTML = `Payment of <strong>${totalUSD}</strong> verified! <strong>${ids.length}</strong> postcard(s) on the way.`
                     + (etaTxt ? ` Estimated delivery: <strong>${etaTxt}</strong>.` : '')
-                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink;
+                    + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink + warnHtml;
             }
         }
 
