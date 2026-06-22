@@ -328,21 +328,21 @@ function saveWizardState() {
             lang: state.lang
         };
         try {
-            localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(Object.assign({}, base, { selectedPhotoSrc: state.selectedPhotoSrc })));
+            sessionStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(Object.assign({}, base, { selectedPhotoSrc: state.selectedPhotoSrc })));
         } catch (e) {
-            // La foto puede ser muy grande para localStorage: guardar al menos el progreso sin la foto
-            try { localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(base)); } catch (e2) {}
+            // La foto puede ser muy grande para el almacenamiento: guardar al menos el progreso sin la foto
+            try { sessionStorage.setItem(WIZARD_STATE_KEY, JSON.stringify(base)); } catch (e2) {}
         }
     }, 400);
 }
 
 function clearWizardState() {
-    try { localStorage.removeItem(WIZARD_STATE_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(WIZARD_STATE_KEY); } catch (e) {}
 }
 
 function restoreWizardState() {
     let data;
-    try { data = JSON.parse(localStorage.getItem(WIZARD_STATE_KEY)); } catch (e) { return; }
+    try { data = JSON.parse(sessionStorage.getItem(WIZARD_STATE_KEY)); } catch (e) { return; }
     if (!data || !data.currentStep || data.currentStep < 1) return;
 
     // Idioma
@@ -768,11 +768,7 @@ function initEventListeners() {
     // Step 2 actions
     document.getElementById('step2-back').addEventListener('click', () => showView('view-step-1'));
     document.getElementById('step2-next').addEventListener('click', () => {
-        // Validate sender
-        if (!state.sender.name || !state.sender.address_line1 || !state.sender.address_city || !state.sender.address_zip) {
-            alert(state.lang === 'es' ? 'Por favor completa tu información de remitente (nombre + dirección).' : 'Please complete your sender info (name + address).');
-            return;
-        }
+        // El remitente ya no se valida: es opcional (solo el nombre) y la direccion de retorno es fija US.
         // Validate recipient
         if (!state.recipient.name || !state.recipient.address_line1 || !state.recipient.address_city || !state.recipient.address_zip) {
             alert(state.lang === 'es' ? 'Por favor completa los campos de dirección del destinatario.' : 'Please complete the recipient address fields.');
