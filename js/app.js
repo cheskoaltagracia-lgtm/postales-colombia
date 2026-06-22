@@ -89,7 +89,7 @@ function populateCountrySelects() {
     ['recipient-country', 'sender-country'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
-        const defaultCode = id === 'sender-country' ? 'CO' : 'US';
+        const defaultCode = 'CO'; // destinatario por defecto Colombia; el cliente lo cambia si envia al exterior
         sel.innerHTML = COUNTRIES.map(c =>
             `<option value="${c.code}"${c.code === defaultCode ? ' selected' : ''}>${c.name} (${c.code})</option>`
         ).join('');
@@ -124,7 +124,7 @@ const state = {
         address_city: '',
         address_state: '',
         address_zip: '',
-        address_country: 'US'
+        address_country: 'CO'
     },
     apiKey: 'test_pub_f29dcfc354131d3aac2c99f469d1c1a',
     isDevMode: false,
@@ -916,7 +916,7 @@ function initEventListeners() {
         state.filters.preset = 'normal';
         state.frontText = state.lang === 'es' ? '¡Saludos desde Colombia!' : 'Greetings from Colombia!';
         state.message = '';
-        state.recipient = { name: '', address_line1: '', address_line2: '', address_city: '', address_state: '', address_zip: '', address_country: 'US' };
+        state.recipient = { name: '', address_line1: '', address_line2: '', address_city: '', address_state: '', address_zip: '', address_country: 'CO' };
         
         // Reset UI inputs
         document.getElementById('front-text-input').value = state.frontText;
@@ -1307,7 +1307,7 @@ function clearCurrentPostcard() {
     state.recipient = {
         name: '', address_line1: '', address_line2: '',
         address_city: '', address_state: '', address_zip: '',
-        address_country: 'US'
+        address_country: 'CO'
     };
     state.message = '';
     state.frontText = state.lang === 'es' ? '¡Saludos desde Colombia!' : 'Greetings from Colombia!';
