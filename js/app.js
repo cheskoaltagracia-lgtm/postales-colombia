@@ -1458,7 +1458,7 @@ function renderTracking(data) {
         html += '</ul>';
     }
     if (data.url) {
-        html += `<p style="margin-top:12px;"><a href="${data.url}" target="_blank" rel="noopener">${es ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a></p>`;
+        html += `<p style="margin-top:12px;"><a href="${data.url}" target="_blank" rel="noopener" onclick="return tryOpenPdf(event, this);">${es ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a></p>`;
     }
     return html;
 }
@@ -1659,11 +1659,11 @@ async function handleMercadoPagoReturn() {
         const okResults = (lobData.results || []).filter(r => r.ok && r.url);
         let pdfLink = '';
         if (okResults.length === 1) {
-            pdfLink = `<br><a href="${okResults[0].url}" target="_blank" rel="noopener">${state.lang === 'es' ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a>`;
+            pdfLink = `<br><a href="${okResults[0].url}" target="_blank" rel="noopener" onclick="return tryOpenPdf(event, this);">${state.lang === 'es' ? 'Ver cómo quedó tu postal (PDF)' : 'See your postcard (PDF)'}</a>`;
         } else if (okResults.length > 1) {
             const lbl = state.lang === 'es' ? 'Postal' : 'Postcard';
             pdfLink = '<br>' + (state.lang === 'es' ? 'Ver tus postales: ' : 'See your postcards: ')
-                + okResults.map((r, i) => `<a href="${r.url}" target="_blank" rel="noopener">${lbl} ${i + 1} (PDF)</a>`).join(' · ');
+                + okResults.map((r, i) => `<a href="${r.url}" target="_blank" rel="noopener" onclick="return tryOpenPdf(event, this);">${lbl} ${i + 1} (PDF)</a>`).join(' · ');
         }
         // Si NO se crearon todas las que se pagaron, avisar claramente (nunca silencioso)
         const failedErrors = (lobData.errors || []);
@@ -1706,9 +1706,49 @@ async function handleMercadoPagoReturn() {
 function displayAPIResponse(data) {
     const responsePanel = document.getElementById('api-response-panel');
     const responseDisplay = document.getElementById('api-response-display');
-    
+
     if (responsePanel && responseDisplay) {
         responsePanel.style.display = 'block';
         responseDisplay.innerHTML = syntaxHighlightJSON(JSON.stringify(data, null, 2));
     }
+}
+
+// Verifica con el backend que el PDF de Lob ya este disponible antes de abrirlo
+// (Lob genera el PDF asincronicamente; los primeros segundos puede dar 404).
+async function tryOpenPdf(event, anchor) {
+    if (event && event.preventDefault) event.preventDefault();
+    const url = anchor && anchor.href ? anchor.href : '';
+    const lang = (typeof state !== 'undefined' && state.lang) || 'es';
+    if (!url) return false;
+
+    const originalText = anchor.textContent;
+    const originalCursor = anchor.style.cursor;
+    anchor.textContent = lang === 'es' ? 'Verificando...' : 'Checking...';
+    anchor.style.pointerEvents = 'none';
+    anchor.style.opacity = '0.6';
+
+    let opened = false;
+    try {
+        const checkResp = await fetch('/api/check-pdf?url=' + encodeURIComponent(url));
+        const data = await checkResp.json();
+        if (data && data.ready) {
+            window.open(url, '_blank', 'noopener');
+            opened = true;
+        } else {
+            alert(lang === 'es'
+                ? 'Tu postal aún se está procesando con la imprenta (suele tardar 30 a 60 segundos). Espera un momento y vuelve a hacer clic.'
+                : 'Your postcard is still being processed by the printer (usually 30 to 60 seconds). Wait a moment and click again.');
+        }
+    } catch (err) {
+        // Si la verificación falla, intentar abrir directo (mejor que bloquear al cliente)
+        console.warn('check-pdf failed, opening direct:', err);
+        window.open(url, '_blank', 'noopener');
+        opened = true;
+    } finally {
+        anchor.textContent = originalText;
+        anchor.style.pointerEvents = 'auto';
+        anchor.style.opacity = '';
+        anchor.style.cursor = originalCursor;
+    }
+    return false; // siempre prevenir la navegacion default; ya abrimos nosotros si tocaba
 }
