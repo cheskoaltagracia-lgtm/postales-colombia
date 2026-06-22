@@ -4,13 +4,12 @@ const PRICE_PER_POSTCARD_COP = 18000;
 const LOB_API_KEY = process.env.LOB_API_KEY;
 
 // Lob exige que la direccion de RETORNO (from) sea de EE.UU.
-// ⚠️ PLACEHOLDER DE PRUEBA — Francisco debe reemplazarla por la direccion de retorno REAL
-// de Postales Colombia en EE.UU. (o pedirle a Lob habilitar remitente internacional).
+// Direccion de retorno de Postales Colombia en EE.UU. (Bethesda, MD).
 const RETURN_ADDRESS = {
-  address_line1: '185 Berry St Ste 6100',
-  address_city: 'San Francisco',
-  address_state: 'CA',
-  address_zip: '94107',
+  address_line1: '6903 Rockledge Dr Ste 800',
+  address_city: 'Bethesda',
+  address_state: 'MD',
+  address_zip: '20817',
   address_country: 'US'
 };
 
