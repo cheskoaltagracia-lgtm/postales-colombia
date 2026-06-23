@@ -826,6 +826,17 @@ function initEventListeners() {
     document.getElementById('step3-next').addEventListener('click', () => {
         renderCart();
         showView('view-step-4');
+        // Meta Pixel: InitiateCheckout
+        if (typeof fbq === 'function') {
+            const qty = (state.cart.length || 0) + 1;
+            fbq('track', 'InitiateCheckout', {
+                value: qty * (state.pricePerPostcardCOP || 18000),
+                currency: 'COP',
+                num_items: qty,
+                content_type: 'product',
+                contents: [{ id: 'postal-4x6', quantity: qty }]
+            });
+        }
     });
 
     // Step 4 actions
@@ -1332,6 +1343,15 @@ function addAnotherPostcardToCart() {
             : 'Complete at least the current postcard recipient before adding another.');
         return;
     }
+    // Meta Pixel: AddToCart
+    if (typeof fbq === 'function') {
+        fbq('track', 'AddToCart', {
+            value: state.pricePerPostcardCOP || 18000,
+            currency: 'COP',
+            content_type: 'product',
+            contents: [{ id: 'postal-4x6', quantity: 1 }]
+        });
+    }
     state.cart.push(snapshotCurrentPostcard());
     clearCurrentPostcard();
     showView('view-step-1');
@@ -1684,6 +1704,18 @@ async function handleMercadoPagoReturn() {
                     + (etaTxt ? ` Estimated delivery: <strong>${etaTxt}</strong>.` : '')
                     + ` ID(s): <strong>${ids.join(', ')}</strong>.` + pdfLink + warnHtml;
             }
+        }
+
+        // Meta Pixel: Purchase (solo si al menos una postal se creo bien en Lob)
+        if (typeof fbq === 'function' && ids.length > 0) {
+            fbq('track', 'Purchase', {
+                value: pending.quantity * (state.pricePerPostcardCOP || 18000),
+                currency: 'COP',
+                num_items: pending.quantity,
+                content_type: 'product',
+                contents: [{ id: 'postal-4x6', quantity: pending.quantity }],
+                order_id: paymentId
+            });
         }
 
         sessionStorage.removeItem(MP_PENDING_KEY);
