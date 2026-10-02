@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
 
   const accessToken = process.env.MP_ACCESS_TOKEN;
   if (!accessToken) {
-    return res.status(500).json({ error: 'MP_ACCESS_TOKEN missing in Vercel env vars' });
+    return res.status(500).json({ error: 'MP_ACCESS_TOKEN missing in env vars' });
   }
 
   try {
