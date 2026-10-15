@@ -52,39 +52,58 @@ Meta Cloud API ──webhook──► n8n
 
 ### Detalles técnicos clave
 - Pedido entrante: mensaje `type: "order"` con `catalog_id` y `product_items[]` (`product_retailer_id`, `quantity`, `item_price`, `currency`).
-- Envío del link: mensaje interactivo `cta_url` (botón "Pagar ahora") dentro de la ventana de 24 h = gratis.
+- Envío del link: mensaje interactivo `cta_url` (botón "Pagar ahora") dentro de la ventana de 24 h. Desde el 1-oct-2026 cuenta como mensaje de servicio cobrable (ver sección 5).
 - Wompi payment link: `name`, `description`, `single_use: true`, `currency: COP`, `amount_in_cents`, `redirect_url`, `expires_at`. Guardar el `id` del link vinculado al pedido.
 - Webhook Wompi: evento `transaction.updated`. Validar `signature.checksum` = SHA256(propiedades indicadas en `signature.properties` + `timestamp` + secreto de eventos). Sin firma válida no se marca nada como pagado.
 - Idempotencia: un pago solo puede cerrar un pedido una vez (misma lógica que blindamos en postales-colombia: un pago no se reutiliza).
 - Mensajes fuera de 24 h (recordatorio de carrito, aviso de despacho): plantillas aprobadas por Meta (utility / marketing).
+- Diseño del bot para ahorrar mensajes: respuestas consolidadas (un mensaje con resumen + botón, no tres mensajes sueltos). Cada mensaje entregado cuenta.
 
 ## 4. Requisitos para arrancar (checklist para Mike)
 
 - [ ] Meta Business Manager verificado (RUT o cámara de comercio, dominio o documento).
 - [ ] Número telefónico dedicado. Si ya usa ese número en WhatsApp Business App, evaluar modo coexistencia (App + API en el mismo número) o migrar.
 - [ ] Nombre visible del negocio aprobado por Meta.
-- [ ] Método de pago cargado en Billing Hub de Meta (obligatorio para mensajes de servicio desde 1-oct-2026).
+- [ ] Método de pago cargado en Billing Hub de Meta (obligatorio desde 1-oct-2026: sin él no salen los mensajes de servicio).
 - [ ] Cuenta Wompi comercio (persona natural o jurídica, RUT, cuenta bancaria). Llaves pública, privada, integridad y eventos.
 - [ ] Catálogo: fotos, nombre, precio, SKU (`retailer_id`), descripción, stock inicial.
 - [ ] Política de envíos, tiempos y cobertura (ciudades / transportadora).
 - [ ] Términos, política de devoluciones y tratamiento de datos (Ley 1581).
 
-## 5. Costos operativos estimados (verificar en fuentes oficiales)
+## 5. Costos operativos estimados (actualizado con cambio Meta 1-oct-2026)
+
+### Cambio de Meta vigente desde el 1 de octubre de 2026
+- Se acabaron los mensajes de servicio gratis ilimitados en la API. Ahora se cobra por mensaje entregado, sea respuesta de humano o de bot/IA.
+- Cada número de WhatsApp Business tiene 1.000 mensajes de servicio gratis por mes calendario. Desde el mensaje 1.001 se cobran (tarifa similar a utility). No se acumulan, se reinician cada mes.
+- Las plantillas utility enviadas dentro de la ventana de 24 h también pasan a cobrarse.
+- La ventana de 24 h sigue existiendo, pero ya no significa "gratis": define qué tipo de mensaje se puede enviar (libre vs. plantilla).
+- Sigue gratis: los mensajes que el cliente envía, y las conversaciones que entran por anuncio Click-to-WhatsApp o botón CTA de página de Facebook (ventana de entrada gratuita de 72 h). Excepción: el agente de IA de Meta, que cobra por tokens.
+- Es obligatorio tener método de pago en Billing Hub de Meta para que los mensajes de servicio sigan saliendo.
+- La WhatsApp Business App (Nivel 1) NO se ve afectada.
+
+### Tabla de costos (verificar en el rate card oficial de Meta)
 
 | Concepto | Costo | Nota |
 |---|---|---|
-| Respuestas dentro de 24 h (servicio) | Gratis | Toda la venta normal ocurre aquí |
-| Plantilla utility fuera de 24 h | ~2,9 COP / msg | Tarifa base 2026, hay descuento por volumen |
-| Plantilla marketing | ~46 COP / msg | Campañas, recordatorios de carrito |
+| Mensajes de servicio 1 a 1.000 / mes | Gratis | Por número telefónico |
+| Mensajes de servicio desde el 1.001 | ~USD 0,0008 (~2,9 COP) / msg | Desde 1-oct-2026 |
+| Plantilla utility (dentro o fuera de 24 h) | ~2,9 COP / msg | Descuento por volumen |
+| Plantilla marketing | ~46 COP / msg (~USD 0,0125–0,0144) | Campañas, carrito abandonado |
+| Entrada por anuncio Click-to-WhatsApp | Gratis 72 h | Todo tipo de mensaje |
 | Wompi | ~2,65% + $700 + IVA por transacción | Tarifa plana reportada 2026, confirmar con Wompi |
 | Bold (alternativa) | ~2,89% a 3,29% + $900 | Desembolso día siguiente |
 | Mercado Pago (alternativa) | ~2,79% a 3,49% + cargos | Depende del plazo de desembolso |
-| n8n self-hosted | VPS ~USD 5–12 / mes | O correr en servidor propio |
+| n8n self-hosted | VPS ~USD 5–12 / mes | O servidor propio |
 | Supabase | Gratis (plan free) | Suficiente para el arranque |
 
-Meta factura en COP en Colombia desde abril 2026.
+Meta factura en COP en Colombia desde abril 2026. La tarifa la define el país del destinatario.
 
-Ejemplo: 300 ventas/mes de $80.000 = $24.000.000. Wompi ≈ 2,65% + $700 + IVA ≈ $1.007.000. Meta casi $0 si todo pasa en ventana de 24 h. Infraestructura < $50.000.
+### Ejemplo: 300 ventas/mes de $80.000 = $24.000.000
+- Wompi ≈ 2,65% + $700 + IVA ≈ $1.007.000.
+- Meta: ~15 mensajes enviados por venta (dudas, resumen, link, confirmación, despacho) + ~600 conversaciones que no compran × 5 = ~7.500 mensajes. Menos 1.000 gratis = 6.500 × 2,9 ≈ $19.000 COP.
+- Plantillas marketing (ej. 2.000 recordatorios/mes × 46) ≈ $92.000.
+- Infraestructura < $50.000.
+- Conclusión: el cambio de octubre no mueve el costo de forma relevante a este volumen; el costo fuerte sigue siendo la pasarela. Pero el bot debe diseñarse para ser conciso y conviene empujar tráfico vía anuncios Click-to-WhatsApp (72 h gratis).
 
 ## 6. Fases y tiempos
 
@@ -112,6 +131,12 @@ Cuello de botella real: la verificación de Meta (de 2 días a 2 semanas).
 - Si factura electrónicamente (DIAN) y con qué software.
 
 ## Fuentes
+
+- SendPulse, cambio de precios de mensajes de servicio oct-2026: https://sendpulse.com/blog/whatsapp-service-message-pricing
+- Techweez, cobro desde el mensaje 1.001: https://techweez.com/2026/09/28/whatsapp-business-pricing-october-2026/
+- Zendesk, anuncio del cambio de precios: https://support.zendesk.com/hc/en-us/articles/11113277351322-Announcing-upcoming-changes-to-WhatsApp-Business-messaging-pricing
+- YCloud, actualización 1-oct-2026: https://www.ycloud.com/blog/whatsapp-api-message-pricing-update-effective-october-1-2026
+- ManyChat, guía de precios: https://help.manychat.com/hc/en-us/articles/14281380243740-WhatsApp-pricing-guide
 
 - Meta, precios WhatsApp Business Platform: https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing
 - Estado WhatsApp Pay por país 2026: https://aerochat.ai/blog/whatsapp-pay-for-ecommerce-country-by-country-status
